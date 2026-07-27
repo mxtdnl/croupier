@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CROUPIER — outcome quality vs decision quality</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bone:        #F2ECDF;
+  --ink:         #141210;
+  --ochre:       #E9A21B;
+  --oxblood:     #A32B26;
+  --ultramarine: #1D3FBF;
+  --jade:        #3FBFA8;
+  --slate:       #6E675F;
+
+  --t-display: 44px;
+  --t-headline: 28px;
+  --t-body: 18px;
+  --t-label: 13px;
+  --meter-h: 20px;
+  --gap: 20px;
+}
+html.class-mode{
+  --t-display: 72px;
+  --t-headline: 40px;
+  --t-body: 28px;
+  --t-label: 18px;
+  --meter-h: 30px;
+  --gap: 26px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+  font-size:var(--t-body);
+  line-height:1.42;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+h1,h2,h3,.display,.headline{
+  font-family:"Archivo Black","Helvetica Neue",Impact,sans-serif;
+  font-weight:400;
+  text-transform:uppercase;
+  letter-spacing:-0.02em;
+  line-height:0.94;
+  margin:0;
+}
+.display{font-size:var(--t-display)}
+.headline{font-size:var(--t-headline)}
+
+.mono,.label,.num,button,input,select{
+  font-family:"Space Mono","SF Mono",Consolas,monospace;
+}
+.label{
+  font-size:var(--t-label);
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-weight:700;
+  display:block;
+}
+.num{font-variant-numeric:tabular-nums;text-transform:uppercase}
+.sec{color:var(--slate)}
+.strike{text-decoration:line-through;color:var(--slate)}
+
+/* ---------- geometry layer ---------- */
+#geo{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#geo .g{position:absolute}
+#geo .arc{border:3px solid var(--ink)}
+#geo .circ-l{border:3px solid var(--ink);border-radius:50%}
+#geo .circ-f{border-radius:50%}
+#geo svg{display:block;width:100%;height:100%}
+
+/* ---------- shell ---------- */
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 22px 90px}
+
+.masthead{
+  position:relative;z-index:2;
+  border-bottom:3px solid var(--ink);
+  background:var(--bone);
+  margin-bottom:30px;
+}
+.masthead .inner{
+  max-width:1180px;margin:0 auto;padding:14px 22px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;
+}
+.wordmark{font-family:"Archivo Black","Helvetica Neue",Impact,sans-serif;font-size:calc(var(--t-headline) * 0.8);text-transform:uppercase;letter-spacing:-0.02em}
+.wordmark .dot{display:inline-block;width:.55em;height:.55em;border-radius:50%;background:var(--oxblood);margin-left:.18em;vertical-align:baseline}
+.mast-spacer{flex:1 1 auto}
+
+nav.modes{display:flex;flex-wrap:wrap;gap:10px}
+
+/* ---------- controls ---------- */
+button{
+  font-size:var(--t-label);
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-weight:700;
+  color:var(--ink);
+  background:var(--bone);
+  border:3px solid var(--ink);
+  border-radius:0;
+  padding:9px 14px;
+  cursor:pointer;
+  box-shadow:5px 5px 0 var(--ink);
+  transition:none;
+}
+button:active{box-shadow:2px 2px 0 var(--ink);transform:translate(5px,5px)}
+button:focus-visible{outline:3px solid var(--ultramarine);outline-offset:3px}
+button[disabled]{color:var(--slate);border-color:var(--slate);box-shadow:5px 5px 0 var(--slate);cursor:not-allowed}
+button[disabled]:active{transform:none;box-shadow:5px 5px 0 var(--slate)}
+button.on{background:var(--ultramarine);color:var(--bone)}
+button.on-ochre{background:var(--ochre);color:var(--ink)}
+button.on-jade{background:var(--jade);color:var(--ink)}
+button.primary{background:var(--ultramarine);color:var(--bone);box-shadow:7px 7px 0 var(--ink)}
+button.primary:active{box-shadow:2px 2px 0 var(--ink)}
+button.ghost{box-shadow:none;padding:7px 11px}
+button.ghost:active{box-shadow:none}
+button.big{font-size:calc(var(--t-body) * .78);padding:14px 20px;box-shadow:7px 7px 0 var(--ink)}
+button.big:active{box-shadow:2px 2px 0 var(--ink)}
+
+input[type=text]{
+  font-size:var(--t-label);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--bone);color:var(--ink);border:3px solid var(--ink);border-radius:0;
+  padding:9px 11px;width:190px;
+}
+input[type=text]:focus{outline:3px solid var(--ultramarine);outline-offset:2px}
+
+/* ---------- panels ---------- */
+.panel{
+  position:relative;
+  background:var(--bone);
+  border:3px solid var(--ink);
+  box-shadow:7px 7px 0 var(--ink);
+  padding:22px;
+  margin-bottom:32px;
+}
+.panel.ink{background:var(--ink);color:var(--bone);box-shadow:7px 7px 0 var(--oxblood)}
+.panel.ink .sec{color:var(--bone);opacity:.72}
+.panel.flag{border-top:22px solid var(--ink)}
+.panel-tag{
+  position:absolute;top:-3px;left:-3px;
+  background:var(--ink);color:var(--bone);
+  font-family:"Space Mono","SF Mono",Consolas,monospace;
+  font-size:var(--t-label);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 12px;
+}
+.panel.tagged{padding-top:46px}
+.offset{margin-left:18px}
+.offset-neg{margin-left:-18px}
+
+.row{display:flex;flex-wrap:wrap;gap:var(--gap)}
+.col{flex:1 1 340px;min-width:0}
+.col-narrow{flex:0 1 300px;min-width:0}
+.stack>*+*{margin-top:16px}
+
+hr.rule{border:0;border-top:3px solid var(--ink);margin:20px 0}
+hr.rule.thin{border-top:3px solid var(--slate)}
+
+/* ---------- meters ---------- */
+.meter{display:flex;gap:4px;margin-top:8px}
+.meter i{flex:1 1 0;height:var(--meter-h);border:3px solid var(--ink);background:var(--bone)}
+
+.readout{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:6px 0;border-bottom:3px solid var(--ink)}
+.readout:last-child{border-bottom:0}
+.readout .v{font-family:"Space Mono","SF Mono",Consolas,monospace;font-weight:700;font-variant-numeric:tabular-nums;text-transform:uppercase;white-space:nowrap}
+.big-num{font-family:"Space Mono","SF Mono",Consolas,monospace;font-weight:700;font-size:calc(var(--t-display)*.72);line-height:1;font-variant-numeric:tabular-nums}
+
+/* ---------- option cards ---------- */
+.opt{
+  display:block;width:100%;text-align:left;
+  border:3px solid var(--ink);background:var(--bone);
+  box-shadow:7px 7px 0 var(--ink);
+  padding:16px 18px;cursor:pointer;margin-bottom:20px;
+  font-family:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+  font-size:var(--t-body);text-transform:none;letter-spacing:0;font-weight:400;
+}
+.opt:active{box-shadow:2px 2px 0 var(--ink);transform:translate(5px,5px)}
+.opt .oname{font-family:"Archivo Black","Helvetica Neue",Impact,sans-serif;text-transform:uppercase;letter-spacing:-0.02em;font-size:var(--t-headline);line-height:1;display:block;margin-bottom:8px}
+.opt.picked{background:var(--ultramarine);color:var(--bone)}
+.opt.picked .sec{color:var(--bone);opacity:.8}
+.opt.otherpick{border-style:dashed;box-shadow:none}
+.opt[disabled]{color:var(--ink);border-color:var(--ink);box-shadow:7px 7px 0 var(--ink);cursor:default}
+.opt.picked[disabled]{color:var(--bone)}
+.opt.otherpick[disabled]{color:var(--slate);border-color:var(--slate);box-shadow:none}
+.opt.otherpick[disabled] .oname{color:var(--slate)}
+.dist-line{font-family:"Space Mono","SF Mono",Consolas,monospace;font-size:var(--t-label);text-transform:uppercase;letter-spacing:.04em;font-weight:700;display:flex;justify-content:space-between;gap:12px;border-top:3px solid currentColor;padding-top:6px;margin-top:6px}
+
+/* ---------- 2x2 ---------- */
+.quad{display:grid;grid-template-columns:repeat(2,1fr);gap:0;border:3px solid var(--ink)}
+.quad .cell{border:3px solid var(--ink);margin:-3px 0 0 -3px;padding:18px;min-height:150px}
+.cell.deserved{background:var(--jade)}
+.cell.badluck{background:var(--ultramarine);color:var(--bone)}
+.cell.dumbluck{background:var(--ochre)}
+.cell.poetic{background:var(--oxblood);color:var(--bone)}
+.cell .qname{font-family:"Archivo Black","Helvetica Neue",Impact,sans-serif;text-transform:uppercase;letter-spacing:-0.02em;font-size:var(--t-headline);line-height:0.95;display:block}
+.cell .qbody{font-size:calc(var(--t-body)*.82);margin-top:8px}
+.cell ul{margin:10px 0 0;padding-left:1.1em;font-family:"Space Mono","SF Mono",Consolas,monospace;font-size:var(--t-label);text-transform:uppercase;letter-spacing:.04em}
+.axis-x,.axis-y{font-family:"Space Mono","SF Mono",Consolas,monospace;font-size:var(--t-label);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.axis-row{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-bottom:8px}
+.axis-row span{padding-left:4px}
+
+/* ---------- canvas ---------- */
+.chartbox{position:relative;height:340px;border:3px solid var(--ink);background:var(--bone)}
+html.class-mode .chartbox{height:430px}
+.chartbox canvas{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:12px}
+.legend span{display:flex;align-items:center;gap:8px;font-family:"Space Mono","SF Mono",Consolas,monospace;font-size:var(--t-label);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.swatch{width:22px;height:14px;border:3px solid var(--ink);display:inline-block;flex:0 0 auto}
+
+/* ---------- rating rows ---------- */
+.scale{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.scale button{min-width:52px;box-shadow:4px 4px 0 var(--ink)}
+html.class-mode .scale button{min-width:68px}
+.scale button:active{box-shadow:1px 1px 0 var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+
+.tape{
+  display:inline-block;background:var(--ink);color:var(--bone);
+  font-family:"Space Mono","SF Mono",Consolas,monospace;font-weight:700;
+  font-size:var(--t-label);letter-spacing:.08em;text-transform:uppercase;padding:5px 11px;
+}
+.tape.ochre{background:var(--ochre);color:var(--ink)}
+.tape.jade{background:var(--jade);color:var(--ink)}
+.tape.ox{background:var(--oxblood);color:var(--bone)}
+.tape.ultra{background:var(--ultramarine);color:var(--bone)}
+
+.kicker{font-family:"Space Mono","SF Mono",Consolas,monospace;font-weight:700;font-size:var(--t-label);letter-spacing:.1em;text-transform:uppercase;color:var(--slate);margin-bottom:10px;display:block}
+
+.lede{font-size:calc(var(--t-body)*1.06);max-width:62ch}
+.body-max{max-width:70ch}
+
+table.tbl{border-collapse:collapse;width:100%;font-family:"Space Mono","SF Mono",Consolas,monospace;font-size:var(--t-label);text-transform:uppercase;letter-spacing:.03em}
+table.tbl th,table.tbl td{border:3px solid var(--ink);padding:8px 10px;text-align:left;font-variant-numeric:tabular-nums}
+table.tbl th{background:var(--ink);color:var(--bone);font-weight:700}
+.scroller{overflow-x:auto}
+
+footer.foot{border-top:3px solid var(--ink);margin-top:20px;padding-top:18px;font-size:calc(var(--t-body)*.74)}
+footer.foot li{margin-bottom:6px}
+
+.hide{display:none !important}
+
+@media (max-width:760px){
+  .quad{grid-template-columns:1fr}
+  .offset,.offset-neg{margin-left:0}
+  #geo{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="geo" aria-hidden="true"></div>
+
+<header class="masthead">
+  <div class="inner">
+    <div class="wordmark">Croupier<span class="dot"></span></div>
+    <nav class="modes" id="nav"></nav>
+    <div class="mast-spacer"></div>
+    <div class="chips">
+      <button id="btn-mode" class="ghost" type="button">Solo mode</button>
+      <span class="tape" id="seed-tape">SEED —</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. SEEDED RNG
+   ============================================================ */
+function hashStr(s){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/* every stochastic surface draws from a named stream, so a run is
+   reproducible no matter what order the student touches things in */
+function stream(tag){ return mulberry32(hashStr(S.seed + "|" + tag)); }
+
+/* ============================================================
+   2. SCENARIO LIBRARY  (config-driven; add entries freely)
+   Each branch: p = probability, lo..hi = uniform payoff band.
+   ============================================================ */
+const money  = v => (v<0?"−":"") + "£" + Math.abs(Math.round(v));
+const moneyK = v => (v<0?"−":"") + "£" + Math.abs(Math.round(v)) + "K";
+const wp     = v => v.toFixed(1) + " WP";
+const qaly   = v => v.toFixed(1) + " QALY";
+const pct1   = v => (v<0?"−":"+") + Math.abs(v).toFixed(1) + "%";
+
+const SCENARIOS = [
+  {
+    id:"sure50",
+    title:"The sure fifty",
+    unit:"POUNDS",
+    fmt:money,
+    brief:"The croupier offers two envelopes and will not let you open both. One holds fifty pounds, guaranteed. The other pays a hundred and twenty if a weighted coin lands your way — it lands your way fifty-five times in a hundred — and nothing at all if it doesn't. You get one go.",
+    options:[
+      {name:"Take the fifty", note:"Certainty. No draw, no distribution, no story.",
+       dist:[{p:1, lo:50, hi:50, label:"Paid"}]},
+      {name:"Play the coin", note:"55% pays around £120. 45% pays nothing.",
+       dist:[{p:0.55, lo:110, hi:130, label:"Coin lands"},{p:0.45, lo:0, hi:0, label:"Coin misses"}]}
+    ],
+    mods:[
+      {id:"rake", label:"House rake", weight:1, note:"The table takes 12% of any coin win.",
+       payoff:{1:0.88}},
+      {id:"tell", label:"You spot a tell", weight:1, note:"Reads the croupier's hand: coin branch weighted 1.35×.",
+       prob:{1:[1.35,1]}}
+    ]
+  },
+  {
+    id:"oneyard",
+    title:"The one-yard line",
+    unit:"WIN PROBABILITY POINTS",
+    fmt:wp,
+    brief:"Twenty-six seconds left, second down, the ball on the one-yard line, one timeout gone. Payoffs here are win probability, nought to a hundred, as the situation stands the instant after the play resolves. This is the call Pete Carroll made in Super Bowl XLIX — the call the entire sports press then judged by its result.",
+    options:[
+      {name:"Run it in", note:"Stuffed at the line and the clock keeps running.",
+       dist:[{p:0.57, lo:96, hi:99, label:"Touchdown"},{p:0.43, lo:30, hi:38, label:"Stuffed, clock runs"}]},
+      {name:"Throw the slant", note:"Incompletion stops the clock and preserves two more plays.",
+       dist:[{p:0.58, lo:96, hi:99, label:"Touchdown"},{p:0.40, lo:42, hi:52, label:"Incomplete, clock stops"},{p:0.02, lo:1, hi:3, label:"Intercepted"}]}
+    ],
+    mods:[
+      {id:"goalline", label:"Goal-line personnel", weight:1, note:"Defence sells out against the run: run-TD branch ×0.72.",
+       prob:{0:[0.72,1]}},
+      {id:"notimeouts", label:"No timeouts left", weight:1, note:"A stopped clock is worth far more: incompletion branch payoff ×1.18.",
+       payoff:{1:1.06}}
+    ]
+  },
+  {
+    id:"hire",
+    title:"The hire",
+    unit:"THREE-YEAR VALUE, £ THOUSANDS",
+    fmt:moneyK,
+    brief:"Two finalists for a role that decides the next three years of the function. One is internal, known, unspectacular and safe. One is external, has done the job at scale somewhere harder, and interviews like a coin with a bias you cannot quite measure. Payoffs are three-year value created, in thousands, net of cost.",
+    options:[
+      {name:"Promote internally", note:"Narrow band. Almost never a disaster, almost never a transformation.",
+       dist:[{p:0.75, lo:180, hi:260, label:"Steady"},{p:0.25, lo:40, hi:90, label:"Out of depth"}]},
+      {name:"Hire the outsider", note:"Fat right tail, real left tail. A bad senior hire costs more than nothing.",
+       dist:[{p:0.35, lo:480, hi:700, label:"Rebuilds the function"},{p:0.40, lo:120, hi:220, label:"Solid, not spectacular"},{p:0.25, lo:-120, hi:-20, label:"Gone in seven months"}]}
+    ],
+    mods:[
+      {id:"ref", label:"Back-channel reference", weight:1, note:"Two credible references: disaster branch weighted 0.6×.",
+       prob:{1:[1,1,0.6]}},
+      {id:"freeze", label:"Budget freeze", weight:1, note:"No room to fix a bad hire: all external payoffs ×0.85.",
+       payoff:{1:0.85}}
+    ]
+  },
+  {
+    id:"operation",
+    title:"The operation",
+    unit:"QUALITY-ADJUSTED LIFE YEARS",
+    fmt:qaly,
+    brief:"A patient with a bad heart. The surgeon can operate — the published mortality for this procedure in this population is eight per cent — or manage the condition medically and accept a slower decline. Payoffs are quality-adjusted life years. This is the Baron & Hershey (1988) design: the decision is identical whichever way the draw falls.",
+    options:[
+      {name:"Operate", note:"92% survive with a repaired heart. 8% do not survive the table.",
+       dist:[{p:0.92, lo:11, hi:14, label:"Survives, repaired"},{p:0.08, lo:0, hi:0, label:"Dies on the table"}]},
+      {name:"Manage medically", note:"No surgical risk, no repair either.",
+       dist:[{p:1, lo:8, hi:9.5, label:"Managed decline"}]}
+    ],
+    mods:[
+      {id:"comorbid", label:"Comorbidity found", weight:1, note:"Operative mortality branch weighted 1.9×.",
+       prob:{0:[1,1.9]}},
+      {id:"volume", label:"High-volume surgeon", weight:1, note:"Mortality branch weighted 0.55×.",
+       prob:{0:[1,0.55]}}
+    ]
+  },
+  {
+    id:"quit",
+    title:"The fourth round",
+    unit:"POUNDS, THOUSANDS",
+    fmt:moneyK,
+    brief:"Three rounds and four years in. The product has users who like it and a market that never arrived. There is one more round available on punishing terms, or you can wind it down now and redeploy what's left. Eight hundred thousand is already spent; it is spent whichever way you choose. Payoffs are forward value only.",
+    options:[
+      {name:"Take the round",  note:"Persistence looks like virtue. Here it is a negative-EV bet.",
+       dist:[{p:0.18, lo:300, hi:600, label:"Market finally turns"},{p:0.82, lo:-140, hi:-60, label:"Same wall, less money"}]},
+      {name:"Wind it down",  note:"Quitting reads as failure and prices as the better bet.",
+       dist:[{p:0.60, lo:40, hi:90, label:"Clean redeployment"},{p:0.40, lo:-10, hi:20, label:"Messy but done"}]}
+    ],
+    mods:[
+      {id:"anchor", label:"Anchor customer signs", weight:1, note:"Turn branch weighted 1.6×.",
+       prob:{0:[1.6,1]}},
+      {id:"sunk", label:"Sunk-cost framing on", weight:1, note:"Reframes nothing in the maths. Payoffs ×1.00 — that is the point.",
+       payoff:{0:1.0}}
+    ]
+  },
+  {
+    id:"portfolio",
+    title:"The allocation",
+    unit:"ONE-YEAR RETURN",
+    fmt:pct1,
+    brief:"A twelve-month horizon on money you do not need for twelve years. Gilts pay a known four per cent. The equity tilt has a fat middle, a decent right shoulder and a tail that will, roughly one year in seven, take a third of it away. Payoffs are one-year total return.",
+    options:[
+      {name:"Hold gilts", note:"A known number. Comfortable, and comfortably worse.",
+       dist:[{p:1, lo:3.8, hi:4.2, label:"Coupon"}]},
+      {name:"Tilt to equity", note:"Higher EV, and a tail that will make you feel stupid in public.",
+       dist:[{p:0.62, lo:9, hi:22, label:"Good year"},{p:0.23, lo:0, hi:6, label:"Flat year"},{p:0.15, lo:-30, hi:-8, label:"Drawdown"}]}
+    ],
+    mods:[
+      {id:"stretched", label:"Stretched valuations", weight:1, note:"Drawdown branch weighted 1.5×.",
+       prob:{1:[1,1,1.5]}},
+      {id:"fees", label:"Active management fees", weight:1, note:"All equity payoffs ×0.92.",
+       payoff:{1:0.92}}
+    ]
+  }
+];
+
+/* ============================================================
+   3. AUDIT ITEMS  (ex ante description fixed; valence drawn at reveal)
+   ============================================================ */
+const AUDIT = [
+  {id:"cfo", text:"A CFO fixes the company's floating-rate debt two months before a central-bank decision. The forward curve prices a rise at 55%; the fix costs 40 basis points of carry; the board has asked for predictable interest cost.",
+   good:"Rates rose 150bp. The fix saved £4.2m over the term and the CFO was named finance leader of the year.",
+   bad:"Rates fell 100bp. The fix cost £2.8m against floating and the CFO spent two board meetings defending it."},
+  {id:"surgeon", text:"A surgeon recommends an operation with a published 8% operative mortality for a patient whose untreated condition carries a much worse ten-year outlook. The patient is told the numbers and consents.",
+   good:"The operation went cleanly. The patient was home in nine days and back at work in six weeks.",
+   bad:"The patient did not survive the operation. The family asked why surgery had been recommended at all."},
+  {id:"carroll", text:"With 26 seconds left on the one-yard line, a coach calls a pass rather than a run. Passes from this formation had been intercepted twice in over a hundred attempts that season; an incompletion stops the clock and preserves two more plays.",
+   good:"Touchdown. The call was written up all week as the boldest play in the game.",
+   bad:"Intercepted at the goal line. The call was written up all week as the worst in Super Bowl history."},
+  {id:"hire", text:"A hiring panel picks the external candidate over the safe internal one after four interviews, two work samples and three back-channel references, all consistent.",
+   good:"They rebuilt the function in eighteen months and two of their hires are now running teams.",
+   bad:"They were gone in seven months and took two good people with them on the way out."},
+  {id:"founder", text:"A founder turns down an acquisition at six times revenue. Growth is 70% year on year, the runway is twenty months, and the offer is below where three comparable companies traded the previous quarter.",
+   good:"Sold three years later for four times the offer.",
+   bad:"The category consolidated around a rival. The company sold two years later for a third of the offer."},
+  {id:"route", text:"A driver checks live traffic, sees the motorway clear and the back road amber, and takes the motorway for a meeting they cannot be late to.",
+   good:"Clear the whole way. Twenty minutes early, coffee before the meeting.",
+   bad:"A jackknifed lorry closed two lanes eight miles on. Three hours stationary, meeting missed."},
+  {id:"rebalance", text:"An investor sells half a position that has tripled and now represents 40% of the portfolio, restoring the written allocation policy they set before the run.",
+   good:"The stock halved the following quarter. The rebalance preserved most of the gain.",
+   bad:"The stock tripled again. The half they sold would have been worth more than the rest of the portfolio."},
+  {id:"flag", text:"A team ships a schema migration behind a feature flag to 5% of traffic after a clean staging run, with a rollback path rehearsed twice.",
+   good:"The 5% cohort surfaced a data bug in ninety minutes. Rolled back, fixed, shipped clean a week later.",
+   bad:"The 5% cohort hit a corruption path staging could not produce. Six weeks of reconciliation and a customer apology."}
+];
+
+/* ============================================================
+   4. DISTRIBUTION MATHS
+   ============================================================ */
+function evOf(dist){ let s=0; for(const b of dist) s += b.p * (b.lo + b.hi)/2; return s; }
+
+/* Modifiers are multiplicative and weight-adjusted: payoff factors compound as
+   f^w, probability weights multiply into the branch weights and renormalise. */
+function applyMods(scn, optIdx, activeIds){
+  const dist = scn.options[optIdx].dist;
+  let w = dist.map(b => b.p);
+  let payoffFactor = 1;
+  for(const m of (scn.mods||[])){
+    if(activeIds.indexOf(m.id) === -1) continue;
+    const wt = m.weight == null ? 1 : m.weight;
+    if(m.payoff && m.payoff[optIdx] != null) payoffFactor *= Math.pow(m.payoff[optIdx], wt);
+    if(m.prob && m.prob[optIdx]) m.prob[optIdx].forEach((f,i)=>{ if(w[i]!=null) w[i] *= Math.pow(f, wt); });
+  }
+  const tot = w.reduce((a,b)=>a+b,0) || 1;
+  return dist.map((b,i)=>({p: w[i]/tot, lo: b.lo*payoffFactor, hi: b.hi*payoffFactor, label: b.label}));
+}
+function sampleOnce(dist, rnd){
+  const r = rnd(); let c = 0;
+  for(const b of dist){ c += b.p; if(r <= c) return b.lo + (b.hi - b.lo) * rnd(); }
+  const b = dist[dist.length-1]; return b.lo + (b.hi - b.lo) * rnd();
+}
+function monteCarlo(dist, rnd, n){
+  const out = new Float64Array(n);
+  for(let i=0;i<n;i++) out[i] = sampleOnce(dist, rnd);
+  return out;
+}
+function percentileOf(samples, v){
+  let c = 0; for(let i=0;i<samples.length;i++) if(samples[i] <= v) c++;
+  return 100 * c / samples.length;
+}
+
+const N_TRIALS = 10000;
+
+/* ============================================================
+   5. STATE
+   ============================================================ */
+const S = {
+  seed: "CROUPIER-01",
+  classMode: false,
+  screen: "start",
+  showEV: false,
+  scenarioIdx: 0,
+  redraw: 0,                       // increments the draw sub-stream on "deal again"
+  mods: {},                        // scenarioId -> [modId]
+  rounds: [],                      // committed results, one per scenario played
+  current: null,                   // last committed result for the scenario on screen
+  audit: { i:0, phase:"pre", pre:[], prob:[], post:[], val:[] }
+};
+function activeMods(id){ return S.mods[id] || (S.mods[id] = []); }
+
+/* ============================================================
+   6. GEOMETRY  (max five shapes per screen, fixed, behind panels)
+   ============================================================ */
+const GEO = {
+  start:[
+    {t:"arc", css:"top:14%;right:-90px;width:300px;height:300px;border-width:3px;border-color:var(--ink);border-radius:100% 0 0 0;border-right:0;border-bottom:0"},
+    {t:"circ-f", css:"bottom:9%;left:-70px;width:230px;height:230px;background:var(--ochre)"},
+    {t:"tri", css:"top:62%;right:1%;", w:120, h:150, fill:"var(--ink)"},
+    {t:"circ-l", css:"top:34%;left:-58px;width:130px;height:130px"}
+  ],
+  table:[
+    {t:"circ-l", css:"top:18%;right:3%;width:270px;height:270px"},
+    {t:"arc", css:"bottom:-60px;left:-60px;width:260px;height:260px;border-radius:0 0 0 100%;border-top:0;border-right:0;border-color:var(--ochre)"},
+    {t:"tri", css:"top:8%;left:2%;", w:90, h:110, fill:"var(--ochre)", flip:true},
+    {t:"squig", css:"bottom:12%;right:6%;width:210px;height:64px"}
+  ],
+  audit:[
+    {t:"circ-f", css:"top:12%;right:-60px;width:180px;height:180px;background:var(--ochre)"},
+    {t:"arc", css:"top:52%;left:-80px;width:300px;height:300px;border-radius:0 100% 0 0;border-left:0;border-bottom:0"},
+    {t:"circ-l", css:"bottom:8%;right:12%;width:150px;height:150px"}
+  ],
+  matrix:[
+    {t:"tri", css:"top:46%;right:-2%;", w:150, h:180, fill:"var(--ink)"},
+    {t:"circ-l", css:"bottom:14%;left:2%;width:200px;height:200px"},
+    {t:"arc", css:"top:60%;left:24%;width:160px;height:160px;border-radius:0 0 100% 0;border-top:0;border-left:0;border-color:var(--ochre)"},
+    {t:"circ-f", css:"bottom:4%;right:-40px;width:120px;height:120px;background:var(--ink)"},
+    {t:"circ-f", css:"top:44%;left:-30px;width:90px;height:90px;background:var(--ochre)"}
+  ],
+  debrief:[
+    {t:"arc", css:"top:8%;right:-70px;width:340px;height:340px;border-radius:0 100% 0 0;border-left:0;border-bottom:0;border-color:var(--ochre)"},
+    {t:"circ-f", css:"top:70%;left:-50px;width:150px;height:150px;background:var(--ink)"},
+    {t:"tri", css:"bottom:6%;right:8%;", w:110, h:130, fill:"var(--ochre)", flip:true},
+    {t:"circ-l", css:"top:30%;left:3%;width:130px;height:130px"}
+  ]
+};
+function buildGeo(name){
+  const host = document.getElementById("geo");
+  host.innerHTML = "";
+  (GEO[name] || []).forEach(g=>{
+    const d = document.createElement("div");
+    d.className = "g " + (g.t === "tri" || g.t === "squig" ? "" : g.t);
+    if(g.t === "tri"){
+      d.style.cssText = g.css + ";width:0;height:0;border-left:" + (g.w/2) + "px solid transparent;border-right:" + (g.w/2) + "px solid transparent;" +
+        (g.flip ? "border-top:" : "border-bottom:") + g.h + "px solid " + g.fill;
+    } else if(g.t === "squig"){
+      d.style.cssText = g.css;
+      d.innerHTML = '<svg viewBox="0 0 210 64" preserveAspectRatio="none"><path d="M4 32 C 22 -6, 44 70, 66 32 S 110 -6, 132 32 S 176 70, 206 20" fill="none" stroke="#141210" stroke-width="6" stroke-linecap="square"/></svg>';
+    } else {
+      d.style.cssText = g.css;
+    }
+    host.appendChild(d);
+  });
+}
+
+/* ============================================================
+   7. SMALL VIEW HELPERS
+   ============================================================ */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function meter(n, colour){
+  n = Math.max(0, Math.min(10, Math.round(n)));
+  let h = '<div class="meter">';
+  for(let i=0;i<10;i++) h += '<i style="' + (i<n ? "background:" + colour : "") + '"></i>';
+  return h + "</div>";
+}
+function readout(k, v, cls){
+  return '<div class="readout"><span class="label">' + esc(k) + '</span><span class="v ' + (cls||"") + '">' + v + "</span></div>";
+}
+
+const QUAD = {
+  gg:{key:"deserved", name:"Deserved success", colour:"var(--jade)", tape:"jade"},
+  gb:{key:"badluck",  name:"Bad luck",         colour:"var(--ultramarine)", tape:"ultra"},
+  bg:{key:"dumbluck", name:"Dumb luck",        colour:"var(--ochre)", tape:"ochre"},
+  bb:{key:"poetic",   name:"Poetic justice",   colour:"var(--oxblood)", tape:"ox"}
+};
+const quadKey = r => (r.decisionGood ? "g" : "b") + (r.outcomeGood ? "g" : "b");
+
+/* ============================================================
+   8. CANVAS — histogram
+   ============================================================ */
+const C = { ink:"#141210", bone:"#F2ECDF", ochre:"#E9A21B", ox:"#A32B26", ultra:"#1D3FBF", jade:"#3FBFA8", slate:"#6E675F" };
+
+function fitCanvas(cv){
+  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = Math.max(1, Math.round(r.width  * dpr));
+  cv.height = Math.max(1, Math.round(r.height * dpr));
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return { ctx, w:r.width, h:r.height };
+}
+function twoFrames(fn){ requestAnimationFrame(()=>requestAnimationFrame(fn)); }
+
+function drawHistogram(cv, m){
+  const { ctx, w, h } = fitCanvas(cv);
+  const F = S.classMode ? 15 : 11;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = C.bone; ctx.fillRect(0,0,w,h);
+
+  const padL = 14, padR = 14, padT = S.classMode ? 34 : 26, padB = S.classMode ? 66 : 54;
+  const row1 = 34, row2 = S.classMode ? 54 : 48;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  if(plotW < 40 || plotH < 40) return;
+
+  let lo = Infinity, hi = -Infinity;
+  [m.chosen, m.alt].forEach(a=>{ for(let i=0;i<a.length;i++){ if(a[i]<lo) lo=a[i]; if(a[i]>hi) hi=a[i]; } });
+  lo = Math.min(lo, m.draw, m.drawAlt); hi = Math.max(hi, m.draw, m.drawAlt);
+  if(hi - lo < 1e-9){ hi = lo + 1; }
+  const dataLo = lo, dataHi = hi;
+  const pad = (hi - lo) * 0.06;
+  lo -= pad; hi += pad;
+  const x = v => padL + (v - lo) / (hi - lo) * plotW;
+
+  const BINS = 40;
+  const bin = a => { const c = new Array(BINS).fill(0);
+    for(let i=0;i<a.length;i++){ let k = Math.floor((a[i]-lo)/(hi-lo)*BINS); if(k<0)k=0; if(k>=BINS)k=BINS-1; c[k]++; }
+    return c; };
+  const cA = bin(m.chosen), cB = bin(m.alt);
+  /* A sure-thing option piles all 10,000 trials into one bin. On a plain shared
+     max that single spike sets the scale and flattens the other option to the
+     baseline — and the overlay of the option you refused is the whole teaching
+     point, so it has to stay readable in both directions. Scale to the 90th
+     percentile of non-empty bins across both series instead, and cap anything
+     that clips with an ink bar so the clipping is declared, not silent. */
+  const nz = [];
+  for(let i=0;i<BINS;i++){ if(cA[i]) nz.push(cA[i]); if(cB[i]) nz.push(cB[i]); }
+  nz.sort((p,q)=>p-q);
+  let maxC = nz.length ? nz[Math.floor(0.9 * (nz.length - 1))] * 1.15 : 1;
+  if(!(maxC > 0)) maxC = 1;
+  const bw = plotW / BINS, gap = 4, barW = Math.max(2, bw - gap);
+  const yOf = c => Math.max(padT, padT + plotH - (c / maxC) * plotH);
+  let clipped = false;
+  const cap = i => { clipped = true; ctx.fillStyle = C.ink; ctx.fillRect(padL + i*bw + gap/2, padT - 6, barW, 6); };
+
+  /* not-chosen distribution: ochre outline, sits behind */
+  for(let i=0;i<BINS;i++){
+    if(!cB[i]) continue;
+    const top = yOf(cB[i]), bh = padT + plotH - top;
+    ctx.lineWidth = 3; ctx.strokeStyle = C.ochre;
+    ctx.strokeRect(padL + i*bw + gap/2 + 1.5, top + 1.5, barW - 3, Math.max(0, bh - 3));
+    if(cB[i] > maxC) cap(i);
+  }
+  /* chosen distribution: flat ultramarine blocks, ink keyline */
+  const drawBin = Math.max(0, Math.min(BINS-1, Math.floor((m.draw - lo)/(hi-lo)*BINS)));
+  for(let i=0;i<BINS;i++){
+    if(!cA[i]) continue;
+    const top = yOf(cA[i]), bh = padT + plotH - top;
+    ctx.fillStyle = (i === drawBin) ? C.ox : C.ultra;
+    ctx.fillRect(padL + i*bw + gap/2, top, barW, bh);
+    ctx.lineWidth = 3; ctx.strokeStyle = C.ink;
+    ctx.strokeRect(padL + i*bw + gap/2 + 1.5, top + 1.5, barW - 3, Math.max(0, bh - 3));
+    if(cA[i] > maxC) cap(i);
+  }
+
+  /* baseline */
+  ctx.lineWidth = 3; ctx.strokeStyle = C.ink;
+  ctx.beginPath(); ctx.moveTo(padL, padT + plotH + 1.5); ctx.lineTo(padL + plotW, padT + plotH + 1.5); ctx.stroke();
+
+  ctx.font = "700 " + F + 'px "Space Mono","SF Mono",Consolas,monospace';
+  ctx.textBaseline = "middle";
+
+  function vline(v, colour, tag, side){
+    const px = x(v);
+    ctx.save();
+    ctx.lineWidth = 3; ctx.strokeStyle = colour;
+    ctx.beginPath(); ctx.moveTo(px, padT - 8); ctx.lineTo(px, padT + plotH); ctx.stroke();
+    const label = tag.toUpperCase();
+    const tw = ctx.measureText(label).width + 12;
+    let tx = px + (side === "left" ? -tw - 4 : 4);
+    tx = Math.max(2, Math.min(w - tw - 2, tx));
+    ctx.fillStyle = colour; ctx.fillRect(tx, padT - 22, tw, 20);
+    ctx.fillStyle = (colour === C.ochre) ? C.ink : C.bone;
+    ctx.textAlign = "left"; ctx.fillText(label, tx + 6, padT - 12);
+    ctx.restore();
+  }
+  vline(m.evAlt,  C.ochre, "EV " + m.fmt(m.evAlt), x(m.evAlt) > x(m.ev) ? "right" : "left");
+  vline(m.ev,     C.ink,   "EV " + m.fmt(m.ev),    x(m.ev) > x(m.evAlt) ? "right" : "left");
+
+  /* the single realised draw */
+  const dx = x(m.draw);
+  ctx.lineWidth = 3; ctx.strokeStyle = C.ox;
+  ctx.beginPath(); ctx.moveTo(dx, padT + plotH); ctx.lineTo(dx, padT + plotH + 12); ctx.stroke();
+  ctx.beginPath(); ctx.arc(dx, padT + plotH + 19, 7, 0, Math.PI*2);
+  ctx.fillStyle = C.ox; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = C.ink; ctx.stroke();
+
+  /* axis ends — the true data range, not the padded drawing range */
+  ctx.fillStyle = C.ink; ctx.textAlign = "left";
+  ctx.fillText(m.fmt(dataLo).toUpperCase(), padL, padT + plotH + row1);
+  ctx.textAlign = "right";
+  ctx.fillText(m.fmt(dataHi).toUpperCase(), padL + plotW, padT + plotH + row1);
+  ctx.textAlign = "center"; ctx.fillStyle = C.slate;
+  ctx.fillText(clipped ? m.unit + " · SOME BARS CAPPED" : m.unit, padL + plotW/2, padT + plotH + row2);
+}
+
+/* ============================================================
+   9. CANVAS — long-run divergence
+   ============================================================ */
+function drawLines(cv, series, xlab){
+  const { ctx, w, h } = fitCanvas(cv);
+  const F = S.classMode ? 15 : 11;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = C.bone; ctx.fillRect(0,0,w,h);
+  const padL = 14, padR = 14, padT = 20, padB = S.classMode ? 46 : 36;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  if(plotW < 40 || plotH < 40) return;
+
+  let lo = Infinity, hi = -Infinity, n = 0;
+  series.forEach(s=>{ n = Math.max(n, s.data.length); s.data.forEach(v=>{ if(v<lo)lo=v; if(v>hi)hi=v; }); });
+  if(hi - lo < 1e-9) hi = lo + 1;
+  const padv = (hi-lo)*0.08; lo -= padv; hi += padv;
+  const X = i => padL + (i/(n-1)) * plotW;
+  const Y = v => padT + plotH - (v - lo)/(hi - lo) * plotH;
+
+  /* zero line */
+  if(lo < 0 && hi > 0){
+    ctx.lineWidth = 3; ctx.strokeStyle = C.slate;
+    ctx.beginPath(); ctx.moveTo(padL, Y(0)); ctx.lineTo(padL+plotW, Y(0)); ctx.stroke();
+  }
+  series.forEach(s=>{
+    ctx.lineWidth = s.w || 3; ctx.strokeStyle = s.colour;
+    ctx.lineJoin = "miter"; ctx.lineCap = "butt";
+    ctx.beginPath();
+    for(let i=0;i<s.data.length;i++){ const px = X(i), py = Y(s.data[i]); i ? ctx.lineTo(px,py) : ctx.moveTo(px,py); }
+    ctx.stroke();
+  });
+  ctx.lineWidth = 3; ctx.strokeStyle = C.ink;
+  ctx.beginPath(); ctx.moveTo(padL, padT+plotH+1.5); ctx.lineTo(padL+plotW, padT+plotH+1.5); ctx.stroke();
+  ctx.font = "700 " + F + 'px "Space Mono","SF Mono",Consolas,monospace';
+  ctx.textBaseline = "middle"; ctx.fillStyle = C.slate; ctx.textAlign = "center";
+  ctx.fillText(xlab, padL + plotW/2, padT + plotH + (S.classMode ? 26 : 20));
+}
+
+/* ============================================================
+   10. LONG RUN — process rule vs resulting rule vs the student's rule
+   ============================================================ */
+const LONG_N = 2000;
+function longRun(){
+  const rnd = stream("longrun|" + S.rounds.length);
+  const evs = SCENARIOS.map(s => s.options.map(o => evOf(o.dist)));
+  const best = evs.map(e => e.indexOf(Math.max.apply(null, e)));
+  const scale = SCENARIOS.map((s,i) => Math.max(1e-6, Math.abs(evs[i][best[i]])));
+
+  const yourPick = SCENARIOS.map((s,i)=>{
+    const r = S.rounds.find(r => r.scenarioId === s.id);
+    return r ? r.choiceIdx : best[i];         // unplayed scenarios default to the EV-optimal pick
+  });
+  const lastWinner = SCENARIOS.map((s,i)=>{
+    const r = S.rounds.find(r => r.scenarioId === s.id);
+    return r ? (r.draw >= r.drawAlt ? r.choiceIdx : 1 - r.choiceIdx) : best[i];
+  });
+
+  const cum = { ev:[0], res:[0], you:[0] };
+  let a = 0, b = 0, c = 0, roundsWon = 0;
+  for(let t=0;t<LONG_N;t++){
+    const si = Math.floor(rnd() * SCENARIOS.length) % SCENARIOS.length;
+    const scn = SCENARIOS[si];
+    const p = [ sampleOnce(scn.options[0].dist, rnd), sampleOnce(scn.options[1].dist, rnd) ];
+    a += p[best[si]] / scale[si];
+    b += p[lastWinner[si]] / scale[si];
+    c += p[yourPick[si]] / scale[si];
+    /* round-by-round, the resulting rule is very often indistinguishable from the
+       process rule — that near-parity is exactly what makes it feel vindicated */
+    if(p[lastWinner[si]] >= p[best[si]]) roundsWon++;
+    /* the resulting heuristic: whatever paid better last time is now "the right call" */
+    lastWinner[si] = p[0] >= p[1] ? 0 : 1;
+    cum.ev.push(a); cum.res.push(b); cum.you.push(c);
+  }
+  /* plotted as advantage over the process rule: the process rule is a flat zero
+     baseline, so the divergence is the shape of the chart rather than a hairline
+     gap between three near-parallel cumulative curves */
+  const gap = { ev:[], res:[], you:[] };
+  for(let i=0;i<cum.ev.length;i++){
+    gap.ev.push(0);
+    gap.res.push(cum.res[i] - cum.ev[i]);
+    gap.you.push(cum.you[i] - cum.ev[i]);
+  }
+  let leadEarly = 0;
+  for(let i=1;i<=50;i++) if(cum.res[i] > cum.ev[i]) leadEarly++;
+  return { cum, gap, leadEarly, roundsWon, roundsWonPct: 100*roundsWon/LONG_N, final:{ ev:a, res:b, you:c } };
+}
+
+/* ============================================================
+   11. RENDER — shell
+   ============================================================ */
+const SCREENS = [
+  ["start",   "Brief"],
+  ["table",   "The table"],
+  ["audit",   "Resulting audit"],
+  ["matrix",  "The 2×2"],
+  ["debrief", "Debrief"]
+];
+function renderNav(){
+  document.getElementById("nav").innerHTML = SCREENS.map(([k,l]) =>
+    '<button type="button" class="ghost ' + (S.screen===k ? "on" : "") + '" data-go="' + k + '">' + esc(l) + "</button>").join("");
+  document.getElementById("seed-tape").textContent = "SEED " + S.seed;
+  document.getElementById("btn-mode").textContent = S.classMode ? "Class mode" : "Solo mode";
+  document.getElementById("btn-mode").className = S.classMode ? "" : "ghost";
+}
+function go(screen){ S.screen = screen; render(); window.scrollTo(0,0); }
+
+function render(){
+  document.documentElement.classList.toggle("class-mode", S.classMode);
+  renderNav();
+  buildGeo(S.screen);
+  const app = document.getElementById("app");
+  app.innerHTML = ({
+    start: viewStart, table: viewTable, audit: viewAudit, matrix: viewMatrix, debrief: viewDebrief
+  })[S.screen]();
+  afterRender();
+}
+
+/* ============================================================
+   12. SCREEN — brief
+   ============================================================ */
+function viewStart(){
+  return `
+  <div class="row">
+    <div class="col" style="flex:1 1 620px">
+      <span class="kicker">Outcome quality × decision quality · a Monte Carlo resulting engine</span>
+      <h1 class="display" style="margin-left:-3px">A good<br>decision<br>is not a<br>good<br>outcome.</h1>
+    </div>
+    <div class="col-narrow" style="flex:1 1 330px">
+      <div class="panel offset" style="margin-top:8px">
+        <p class="body-max" style="margin-top:0">You decide before the world resolves. The result arrives afterwards, shaped by everything you did not control. Judging the first by the second is called <strong>resulting</strong>, and it is the most expensive habit in decision-making: it rewards dumb luck and punishes sound judgement.</p>
+        <p class="body-max" style="margin-bottom:0">This table deals you the same decisions ten thousand times so you can see the distribution you chose, not just the point you drew.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel tagged" style="margin-top:6px">
+    <span class="panel-tag">Set the table</span>
+    <div class="row">
+      <div class="col">
+        <span class="label">Seed — fixes every draw in the session</span>
+        <div class="chips" style="margin-top:10px">
+          <input type="text" id="seed-in" value="${esc(S.seed)}" spellcheck="false">
+          <button type="button" id="seed-set">Set seed</button>
+          <button type="button" id="seed-new">New seed</button>
+        </div>
+        <p class="sec" style="font-size:calc(var(--t-body)*.8);margin-bottom:0">Same seed, same session: identical histograms, identical draws, identical outcome assignments in the audit.</p>
+      </div>
+      <div class="col">
+        <span class="label">Projection</span>
+        <div class="chips" style="margin-top:10px">
+          <button type="button" id="mode-solo" class="${S.classMode?"":"on"}">Solo</button>
+          <button type="button" id="mode-class" class="${S.classMode?"on":""}">Class</button>
+        </div>
+        <p class="sec" style="font-size:calc(var(--t-body)*.8);margin-bottom:0">Class mode enlarges every type size for projection. Nothing else changes.</p>
+      </div>
+    </div>
+    <hr class="rule">
+    <div class="chips">
+      <button type="button" class="primary big" data-go="table">Deal the first scenario</button>
+      <button type="button" class="big" data-go="audit">Run the resulting audit first</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="panel ink">
+        <span class="label" style="color:var(--ochre)">Mode one — the table</span>
+        <h2 class="headline" style="margin:8px 0 10px">Ten thousand<br>parallel worlds</h2>
+        <p style="margin:0">Read the scenario, commit to an option, and the engine samples ten thousand trials from both distributions. One of those draws is marked as what happened to <em>you</em>, with its percentile. A +EV decision landing in the bad tail is the whole lesson.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <span class="label">Mode two — the audit</span>
+        <h2 class="headline" style="margin:8px 0 10px">Measure your<br>own bias</h2>
+        <p style="margin:0">Eight decisions, described exactly as they looked beforehand. Rate each one, then see how it turned out, then rate it again. The gap between your two ratings, signed by the outcome's valence, is your outcome-bias coefficient — a live replication of Baron &amp; Hershey (1988).</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   13. SCREEN — the table (Mode 1)
+   ============================================================ */
+function scenarioState(scn){
+  const act = activeMods(scn.id);
+  const dists = scn.options.map((o,i)=>applyMods(scn, i, act));
+  const evs = dists.map(evOf);
+  const bestIdx = evs.indexOf(Math.max.apply(null, evs));
+  return { act, dists, evs, bestIdx };
+}
+function commitChoice(idx){
+  const scn = SCENARIOS[S.scenarioIdx];
+  const st = scenarioState(scn);
+  const tag = scn.id + "|" + st.act.slice().sort().join(",") + "|" + S.redraw;
+  const rndA = stream(tag + "|A"), rndB = stream(tag + "|B"), rndD = stream(tag + "|D");
+  const samples = [ monteCarlo(st.dists[0], rndA, N_TRIALS), monteCarlo(st.dists[1], rndB, N_TRIALS) ];
+  const draws = [ sampleOnce(st.dists[0], rndD), sampleOnce(st.dists[1], rndD) ];
+  const other = 1 - idx;
+  const r = {
+    scenarioId: scn.id, title: scn.title, unit: scn.unit, fmt: scn.fmt,
+    choiceIdx: idx, otherIdx: other, bestIdx: st.bestIdx,
+    evChosen: st.evs[idx], evOther: st.evs[other], evBest: st.evs[st.bestIdx],
+    draw: draws[idx], drawAlt: draws[other],
+    pct: percentileOf(samples[idx], draws[idx]),
+    samples, mods: st.act.slice(),
+    optNames: scn.options.map(o=>o.name)
+  };
+  r.decisionGood = (idx === st.bestIdx);
+  r.outcomeGood  = (r.draw >= st.evs[st.bestIdx]);
+  S.current = r;
+  const prev = S.rounds.findIndex(x => x.scenarioId === scn.id);
+  if(prev >= 0) S.rounds[prev] = r; else S.rounds.push(r);
+  render();
+}
+
+function viewTable(){
+  const scn = SCENARIOS[S.scenarioIdx];
+  const st = scenarioState(scn);
+  const played = S.rounds.find(r => r.scenarioId === scn.id);
+  const showResult = played && S.current && S.current.scenarioId === scn.id;
+
+  const optCards = scn.options.map((o,i)=>{
+    const d = st.dists[i];
+    const picked = showResult && S.current.choiceIdx === i;
+    const other  = showResult && S.current.choiceIdx !== i;
+    const lines = d.map(b => '<span class="dist-line"><span>' + esc(b.label) + "</span><span>" +
+      (b.p*100).toFixed(0) + "% · " + scn.fmt(b.lo) + (b.hi!==b.lo ? "–" + scn.fmt(b.hi) : "") + "</span></span>").join("");
+    return `<button type="button" class="opt ${picked?"picked":""} ${other?"otherpick":""}" data-pick="${i}" ${showResult?"disabled":""}>
+      <span class="oname">${esc(o.name)}</span>
+      <span class="sec" style="display:block;margin-bottom:10px">${esc(o.note)}</span>
+      ${lines}
+      ${S.showEV || showResult ? '<span class="dist-line" style="border-top-width:3px"><span>Expected value</span><span>' + scn.fmt(st.evs[i]) + "</span></span>" : ""}
+    </button>`;
+  });
+
+  const modsHTML = (scn.mods||[]).map(m=>{
+    const on = st.act.indexOf(m.id) !== -1;
+    return `<button type="button" class="${on?"on-ochre":"ghost"}" data-mod="${m.id}" title="${esc(m.note)}">${on?"■":"□"} ${esc(m.label)}</button>`;
+  }).join("");
+  const modNotes = (scn.mods||[]).filter(m=>st.act.indexOf(m.id)!==-1).map(m=>esc(m.note)).join(" ");
+
+  let resultHTML = "";
+  if(showResult){
+    const r = S.current;
+    const q = QUAD[quadKey(r)];
+    const beat = r.drawAlt > r.draw;
+    resultHTML = `
+    <div class="panel tagged offset-neg" style="border-top:22px solid ${q.colour}">
+      <span class="panel-tag">The draw</span>
+      <div class="row">
+        <div class="col" style="flex:2 1 460px">
+          <div class="chartbox"><canvas id="hist"></canvas></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:var(--ultramarine)"></i> Your option, 10,000 trials</span>
+            <span><i class="swatch" style="background:var(--bone);border-color:var(--ochre)"></i> The option you refused</span>
+            <span><i class="swatch" style="background:var(--oxblood)"></i> What actually happened</span>
+            <span><i class="swatch" style="background:var(--ink)"></i> EV of your option</span>
+          </div>
+        </div>
+        <div class="col" style="flex:1 1 300px">
+          <span class="label">What happened to you</span>
+          <div class="big-num" style="color:${r.outcomeGood?"var(--ink)":"var(--oxblood)"}">${r.fmt(r.draw)}</div>
+          <span class="label sec" style="margin-top:6px">Percentile within your own distribution</span>
+          ${meter(r.pct/10, r.pct < 30 ? "var(--oxblood)" : r.pct > 70 ? "var(--jade)" : "var(--ochre)")}
+          <div class="num" style="font-weight:700;margin-top:6px">${r.pct.toFixed(1)}TH PERCENTILE</div>
+          <hr class="rule">
+          ${readout("EV, your option", r.fmt(r.evChosen))}
+          ${readout("EV, the other one", r.fmt(r.evOther))}
+          ${readout("Road not taken", r.fmt(r.drawAlt))}
+          ${readout("Process", r.decisionGood ? "CHOSE +EV" : "CHOSE −EV", r.decisionGood ? "" : "strike")}
+        </div>
+      </div>
+      <hr class="rule">
+      <span class="tape ${q.tape}">${esc(q.name.toUpperCase())}</span>
+      <p class="body-max" style="margin-bottom:0">
+        ${r.decisionGood
+          ? `You took the higher-EV option (${esc(r.optNames[r.choiceIdx])}, ${r.fmt(r.evChosen)} against ${r.fmt(r.evOther)}). `
+          : `You took the lower-EV option (${esc(r.optNames[r.choiceIdx])}, ${r.fmt(r.evChosen)} against ${r.fmt(r.evOther)}). `}
+        ${r.outcomeGood
+          ? `The draw came in at or above the best available EV. `
+          : `The draw came in below the best available EV. `}
+        ${beat
+          ? `<strong>The option you refused paid ${r.fmt(r.drawAlt)} in this one world — more than you got.</strong> That is one draw from a distribution with ${r.evOther > r.evChosen ? "a higher" : "a lower"} expected value, not evidence about the call.`
+          : `Your draw also beat the counterfactual draw of ${r.fmt(r.drawAlt)} — which is equally uninformative about the call.`}
+      </p>
+      <div class="chips" style="margin-top:18px">
+        <button type="button" id="redeal">Deal this draw again</button>
+        <button type="button" id="undo" class="ghost">Change my choice</button>
+        <button type="button" class="primary" id="next-scn">${S.scenarioIdx < SCENARIOS.length-1 ? "Next scenario" : "Go to debrief"}</button>
+      </div>
+    </div>`;
+  }
+
+  const dots = SCENARIOS.map((s,i)=>{
+    const done = S.rounds.some(r=>r.scenarioId===s.id);
+    return `<button type="button" class="ghost ${i===S.scenarioIdx?"on":""}" data-scn="${i}">${String(i+1).padStart(2,"0")}${done?" ✓":""}</button>`;
+  }).join("");
+
+  return `
+  <div class="row" style="align-items:flex-end">
+    <div class="col" style="flex:2 1 520px">
+      <span class="kicker">Mode one · Monte Carlo decision replayer · N = 10,000</span>
+      <h1 class="display" style="margin-left:-3px">${esc(scn.title)}</h1>
+    </div>
+    <div class="col" style="flex:1 1 260px">
+      <div class="chips" style="justify-content:flex-end">${dots}</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:26px">
+    <p class="lede" style="margin:0">${esc(scn.brief)}</p>
+    <hr class="rule">
+    <div class="row" style="align-items:center">
+      <div class="col" style="flex:2 1 380px">
+        <span class="label">Scenario modifiers — multiplicative, weight-adjusted</span>
+        <div class="chips" style="margin-top:10px">${modsHTML}</div>
+        ${modNotes ? '<p class="sec" style="font-size:calc(var(--t-body)*.78);margin:12px 0 0">' + modNotes + "</p>" : ""}
+      </div>
+      <div class="col" style="flex:1 1 200px">
+        <span class="label">Expected values</span>
+        <div class="chips" style="margin-top:10px">
+          <button type="button" id="toggle-ev" class="${S.showEV?"on":"ghost"}">${S.showEV?"Shown":"Hidden"}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    ${optCards.map(c => '<div class="col">' + c + "</div>").join("")}
+  </div>
+
+  ${showResult ? resultHTML : `<div class="panel ink"><p style="margin:0">Commit to an option. Nothing is sampled until you do — the engine will not let you choose after seeing the draw, because that is the entire disease this tool treats.</p></div>`}
+  `;
+}
+
+/* ============================================================
+   14. SCREEN — resulting audit (Mode 2)
+   ============================================================ */
+function auditValence(i){ return stream("audit|" + i)() < 0.5 ? "bad" : "good"; }
+
+function auditStats(){
+  const a = S.audit;
+  const done = [];
+  for(let i=0;i<AUDIT.length;i++) if(a.pre[i] != null && a.post[i] != null) done.push(i);
+  const good = done.filter(i => a.val[i] === "good");
+  const bad  = done.filter(i => a.val[i] === "bad");
+  const mean = arr => arr.length ? arr.reduce((x,y)=>x+y,0)/arr.length : null;
+  const rawGood = mean(good.map(i=>a.post[i]));
+  const rawBad  = mean(bad.map(i=>a.post[i]));
+  const shiftGood = mean(good.map(i=>a.post[i]-a.pre[i]));
+  const shiftBad  = mean(bad.map(i=>a.post[i]-a.pre[i]));
+  const raw  = (rawGood!=null && rawBad!=null) ? rawGood - rawBad : null;
+  const ctrl = (shiftGood!=null && shiftBad!=null) ? shiftGood - shiftBad : null;
+  const brierItems = done.filter(i => a.prob[i] != null);
+  const brier = brierItems.length
+    ? brierItems.reduce((s,i)=>{ const o = a.val[i]==="good"?1:0; const p = a.prob[i]/100; return s + (p-o)*(p-o); },0)/brierItems.length
+    : null;
+  return { done, good, bad, rawGood, rawBad, shiftGood, shiftBad, raw, ctrl, brier, n:done.length };
+}
+
+function viewAudit(){
+  const a = S.audit;
+  if(a.i >= AUDIT.length) return viewAuditResult();
+  const item = AUDIT[a.i];
+  const val = auditValence(a.i);
+  const revealed = a.phase === "post";
+
+  const scale = (which, val0) => `<div class="scale">` +
+    [1,2,3,4,5,6,7].map(n => `<button type="button" data-rate="${which}:${n}" class="${val0===n?"on":""}">${n}</button>`).join("") +
+    `<span class="label sec" style="display:inline;margin-left:8px">1 = TERRIBLE · 7 = EXCELLENT</span></div>`;
+
+  const probRow = `<div class="scale">` +
+    [0,10,20,30,40,50,60,70,80,90,100].map(n => `<button type="button" data-prob="${n}" class="${a.prob[a.i]===n?"on-jade":""}" style="min-width:46px">${n}</button>`).join("") +
+    `</div>`;
+
+  const canReveal = a.pre[a.i] != null && a.prob[a.i] != null;
+
+  return `
+  <div class="row" style="align-items:flex-end">
+    <div class="col" style="flex:2 1 520px">
+      <span class="kicker">Mode two · outcome-bias audit · item ${String(a.i+1).padStart(2,"0")} of ${String(AUDIT.length).padStart(2,"0")}</span>
+      <h1 class="display" style="margin-left:-3px">Rate the<br>decision.</h1>
+    </div>
+    <div class="col" style="flex:1 1 240px">
+      <span class="label">Progress</span>
+      ${meter(10 * a.i / AUDIT.length, "var(--ultramarine)")}
+    </div>
+  </div>
+
+  <div class="panel tagged offset" style="margin-top:26px">
+    <span class="panel-tag">What was known at the time</span>
+    <p class="lede" style="margin:0">${esc(item.text)}</p>
+  </div>
+
+  <div class="panel">
+    <span class="label">1 · How good was this decision? (outcome hidden)</span>
+    <div style="margin-top:12px">${scale("pre", a.pre[a.i])}</div>
+    <hr class="rule">
+    <span class="label">2 · Chance this turns out well, per cent</span>
+    <div style="margin-top:12px">${probRow}</div>
+    ${!revealed ? `<hr class="rule">
+      <button type="button" class="primary big" id="reveal" ${canReveal?"":"disabled"}>Reveal what happened</button>
+      ${canReveal?"":'<p class="sec" style="margin:12px 0 0;font-size:calc(var(--t-body)*.8)">Rate the decision and give a probability first.</p>'}` : ""}
+  </div>
+
+  ${revealed ? `
+  <div class="panel" style="border-top:22px solid ${val==="good"?"var(--jade)":"var(--oxblood)"}">
+    <span class="tape ${val==="good"?"jade":"ox"}">${val==="good"?"IT WENT WELL":"IT WENT BADLY"}</span>
+    <p class="lede" style="margin:14px 0 0">${esc(val==="good"?item.good:item.bad)}</p>
+    <hr class="rule">
+    <span class="label">3 · Knowing that — how good was the decision?</span>
+    <p class="sec" style="font-size:calc(var(--t-body)*.8);margin:6px 0 12px">Nothing about the decision or the information available at the time has changed.</p>
+    ${scale("post", a.post[a.i])}
+    <hr class="rule">
+    <button type="button" class="primary big" id="audit-next" ${a.post[a.i]!=null?"":"disabled"}>
+      ${a.i < AUDIT.length-1 ? "Next decision" : "See my coefficient"}</button>
+  </div>` : ""}
+  `;
+}
+
+function viewAuditResult(){
+  const s = auditStats();
+  const a = S.audit;
+  const band = s.ctrl == null ? "—"
+    : s.ctrl >= 1.5 ? "SEVERE RESULTING"
+    : s.ctrl >= 0.8 ? "STRONG RESULTING"
+    : s.ctrl >= 0.3 ? "MODERATE RESULTING"
+    : s.ctrl > -0.3 ? "LARGELY OUTCOME-BLIND"
+    : "REVERSED — YOU MARKED DOWN WINNERS";
+  const bandColour = s.ctrl == null ? "var(--slate)"
+    : s.ctrl >= 0.8 ? "var(--oxblood)" : s.ctrl >= 0.3 ? "var(--ochre)" : "var(--jade)";
+
+  const rows = s.done.map(i => {
+    const shift = a.post[i] - a.pre[i];
+    return `<tr>
+      <td>${esc(AUDIT[i].id)}</td>
+      <td>${a.val[i]==="good"?"GOOD":"BAD"}</td>
+      <td>${a.pre[i]}</td>
+      <td>${a.post[i]}</td>
+      <td style="color:${shift>0?"var(--ultramarine)":shift<0?"var(--oxblood)":"var(--slate)"}">${shift>0?"+":""}${shift}</td>
+      <td>${a.prob[i]}%</td>
+    </tr>`;
+  }).join("");
+
+  return `
+  <span class="kicker">Mode two · result</span>
+  <h1 class="display" style="margin-left:-3px">Your outcome-bias<br>coefficient</h1>
+
+  <div class="row" style="margin-top:26px">
+    <div class="col" style="flex:1 1 320px">
+      <div class="panel offset-neg" style="border-top:22px solid ${bandColour}">
+        <span class="label">Mean shift toward the outcome's valence</span>
+        <div class="big-num" style="color:${bandColour}">${s.ctrl==null?"—":(s.ctrl>0?"+":"")+s.ctrl.toFixed(2)}</div>
+        <span class="tape" style="background:${bandColour};color:${bandColour==="var(--ochre)"||bandColour==="var(--jade)"?"var(--ink)":"var(--bone)"};margin-top:10px">${band}</span>
+        ${meter(Math.min(10, Math.abs(s.ctrl||0)/0.3), bandColour)}
+        <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:14px 0 0">
+          mean(post − pre | good outcome) − mean(post − pre | bad outcome), on a 1–7 scale, controlling for the pre-outcome rating.
+        </p>
+      </div>
+    </div>
+    <div class="col" style="flex:1 1 320px">
+      <div class="panel">
+        <span class="label">The uncontrolled version</span>
+        ${readout("Mean post-rating, good outcomes", s.rawGood==null?"—":s.rawGood.toFixed(2))}
+        ${readout("Mean post-rating, bad outcomes", s.rawBad==null?"—":s.rawBad.toFixed(2))}
+        ${readout("Raw gap", s.raw==null?"—":(s.raw>0?"+":"")+s.raw.toFixed(2))}
+        <hr class="rule thin">
+        ${readout("Mean shift, good outcomes", s.shiftGood==null?"—":(s.shiftGood>0?"+":"")+s.shiftGood.toFixed(2))}
+        ${readout("Mean shift, bad outcomes", s.shiftBad==null?"—":(s.shiftBad>0?"+":"")+s.shiftBad.toFixed(2))}
+        ${readout("Items scored", s.n + " / " + AUDIT.length)}
+      </div>
+    </div>
+    <div class="col" style="flex:1 1 280px">
+      <div class="panel">
+        <span class="label">Brier score — calibration</span>
+        <div class="big-num">${s.brier==null?"—":s.brier.toFixed(3)}</div>
+        ${meter(s.brier==null?0:10 - Math.min(10, s.brier/0.05), s.brier!=null && s.brier<0.2 ? "var(--jade)" : "var(--ochre)")}
+        <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:14px 0 0">
+          Mean squared error between your stated probability and the 0/1 outcome. Lower is better; 0.25 is what you get by always saying 50%.
+          Note this is a separate skill from the coefficient above — you can be well calibrated and still result badly.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel tagged">
+    <span class="panel-tag">Item by item</span>
+    <div class="scroller">
+      <table class="tbl">
+        <thead><tr><th>Item</th><th>Outcome</th><th>Pre</th><th>Post</th><th>Shift</th><th>Your P(good)</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6">No items scored.</td></tr>'}</tbody>
+      </table>
+    </div>
+    <p class="body-max" style="margin-bottom:0">Every description above was fixed before the outcome was drawn, and the outcome was assigned by the seeded RNG — not by anything in the decision. Any systematic gap between your two ratings is bias, measured on you, in real time. This is the Baron &amp; Hershey (1988) design run live.</p>
+    <div class="chips" style="margin-top:18px">
+      <button type="button" id="audit-reset" class="ghost">Run the audit again</button>
+      <button type="button" class="primary" data-go="matrix">Sort it into the 2×2</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   15. SCREEN — the 2x2
+   ============================================================ */
+function viewMatrix(){
+  const cells = { gg:[], gb:[], bg:[], bb:[] };
+  S.rounds.forEach(r => cells[quadKey(r)].push(r));
+  const list = k => cells[k].length
+    ? "<ul>" + cells[k].map(r => "<li>" + esc(r.title.toUpperCase()) + " · " + r.fmt(r.draw) + "</li>").join("") + "</ul>"
+    : '<ul><li style="opacity:.65">— nothing yet</li></ul>';
+
+  return `
+  <div class="row" style="align-items:flex-end">
+    <div class="col" style="flex:2 1 560px">
+      <span class="kicker">The organising picture</span>
+      <h1 class="display" style="margin-left:-3px">Two axes.<br>Four verdicts.</h1>
+    </div>
+    <div class="col" style="flex:1 1 280px">
+      <p class="sec" style="margin:0 0 6px">Resulting collapses this table onto the outcome column and mislabels both off-diagonal cells.</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:26px">
+    <div class="axis-row">
+      <span class="axis-x">→ Good outcome</span>
+      <span class="axis-x">→ Bad outcome</span>
+    </div>
+    <div class="quad">
+      <div class="cell deserved">
+        <span class="label">Good decision</span>
+        <span class="qname">Deserved<br>success</span>
+        <p class="qbody">Sound process, good draw. Learn from it — but check you are learning the process, not the result.</p>
+        ${list("gg")}
+      </div>
+      <div class="cell badluck">
+        <span class="label">Good decision</span>
+        <span class="qname">Bad<br>luck</span>
+        <p class="qbody">Sound process, bad draw. <strong>Do not change the process.</strong> This is where resulting does its most expensive damage.</p>
+        ${list("gb")}
+      </div>
+      <div class="cell dumbluck">
+        <span class="label">Bad decision</span>
+        <span class="qname">Dumb<br>luck</span>
+        <p class="qbody">Poor process, good draw. <strong>Do not repeat it.</strong> Resulting will promote this person and canonise the method.</p>
+        ${list("bg")}
+      </div>
+      <div class="cell poetic">
+        <span class="label">Bad decision</span>
+        <span class="qname">Poetic<br>justice</span>
+        <p class="qbody">Poor process, bad draw. The only cell where the obvious lesson is the right one.</p>
+        ${list("bb")}
+      </div>
+    </div>
+    <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:16px 0 0">
+      Placement rule used here: <strong>decision quality</strong> = did you take the higher-EV option, given the modifiers active at the time.
+      <strong>Outcome quality</strong> = did your single realised draw land at or above the best available EV.
+    </p>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="panel ink">
+        <span class="label" style="color:var(--ochre)">Duke, Thinking in Bets (2018)</span>
+        <h2 class="headline" style="margin:8px 0 10px">Life is poker,<br>not chess</h2>
+        <p style="margin:0">Chess is a game of perfect information: if you lose, you erred. Poker is not. The best decision available still loses hands, routinely, and a hand you should never have played still wins sometimes. Judging the bet by the card that fell is a category error — and it is the default human setting.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <span class="label">What feeds resulting</span>
+        <hr class="rule thin">
+        <p style="margin:0 0 10px"><strong>Hindsight bias.</strong> Once you know the result, it looks as though it was foreseeable — so the decision looks negligent in retrospect even though nothing was knowable at the time.</p>
+        <p style="margin:0 0 10px"><strong>Survivorship bias.</strong> Wald was asked where to armour bombers, using the bullet holes on planes that came back. The answer is to armour where the returners were <em>not</em> hit — planes hit there never returned to be counted. Case studies of successes are censored the same way.</p>
+        <p style="margin:0"><strong>Self-serving attribution.</strong> Our good outcomes are skill; our bad ones are variance. Everyone else's run the other way.</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   16. SCREEN — debrief
+   ============================================================ */
+function viewDebrief(){
+  const n = S.rounds.length;
+  const evPicks = S.rounds.filter(r => r.decisionGood).length;
+  const goodOutcomes = S.rounds.filter(r => r.outcomeGood).length;
+  const s = auditStats();
+
+  /* realised vs EV-optimal, in normalised units so scenarios can be summed */
+  let realised = 0, evOpt = 0;
+  S.rounds.forEach(r => { const sc = Math.max(1e-6, Math.abs(r.evBest)); realised += r.draw/sc; evOpt += r.evBest/sc; });
+
+  const lr = n ? longRun() : null;
+
+  const rows = S.rounds.map(r => {
+    const q = QUAD[quadKey(r)];
+    return `<tr>
+      <td>${esc(r.title.toUpperCase())}</td>
+      <td>${esc(r.optNames[r.choiceIdx].toUpperCase())}</td>
+      <td>${r.decisionGood ? "+EV" : "−EV"}</td>
+      <td>${r.fmt(r.evChosen)}</td>
+      <td>${r.fmt(r.draw)}</td>
+      <td>${r.pct.toFixed(0)}%</td>
+      <td>${r.fmt(r.drawAlt)}</td>
+      <td>${esc(q.name.toUpperCase())}</td>
+    </tr>`;
+  }).join("");
+
+  const processPct = n ? 100*evPicks/n : 0;
+  const outcomePct = n ? 100*goodOutcomes/n : 0;
+
+  const summary = !n ? "Play at least one scenario at the table and this line will write itself."
+    : `How you <em>did</em>: ${goodOutcomes} of ${n} draws landed at or above the best available EV — ${outcomePct.toFixed(0)}%, and almost entirely the croupier's doing.
+       How you <em>decided</em>: you took the higher-EV option ${evPicks} of ${n} times — ${processPct.toFixed(0)}%, and entirely yours.
+       ${s.ctrl!=null ? `Your audit shifted ratings by ${(s.ctrl>0?"+":"")+s.ctrl.toFixed(2)} points toward whichever way the world happened to fall.` : ""}`;
+
+  return `
+  <span class="kicker">Session debrief</span>
+  <h1 class="display" style="margin-left:-3px">How you did.<br>How you decided.</h1>
+
+  <div class="row" style="margin-top:26px">
+    <div class="col" style="flex:1 1 300px">
+      <div class="panel">
+        <span class="label">Process score — chose the +EV option</span>
+        <div class="big-num" style="color:var(--ultramarine)">${n?processPct.toFixed(0)+"%":"—"}</div>
+        ${meter(processPct/10, "var(--ultramarine)")}
+        <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:12px 0 0">Scored on the decision alone. The realised payoff is not in this number and never should be.</p>
+      </div>
+    </div>
+    <div class="col" style="flex:1 1 300px">
+      <div class="panel offset">
+        <span class="label">Result score — draws at or above best EV</span>
+        <div class="big-num" style="color:var(--ochre)">${n?outcomePct.toFixed(0)+"%":"—"}</div>
+        ${meter(outcomePct/10, "var(--ochre)")}
+        <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:12px 0 0">This is the number your organisation almost certainly measures instead.</p>
+      </div>
+    </div>
+    <div class="col" style="flex:1 1 300px">
+      <div class="panel">
+        <span class="label">Realised vs EV-optimal</span>
+        ${readout("Realised total (normalised)", n?realised.toFixed(2):"—")}
+        ${readout("EV-optimal expectation", n?evOpt.toFixed(2):"—")}
+        ${readout("Gap", n?((realised-evOpt>0?"+":"")+(realised-evOpt).toFixed(2)):"—", realised-evOpt<0?"strike":"")}
+        ${readout("Outcome-bias coefficient", s.ctrl==null?"—":(s.ctrl>0?"+":"")+s.ctrl.toFixed(2))}
+        ${readout("Brier score", s.brier==null?"—":s.brier.toFixed(3))}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel ink">
+    <span class="label" style="color:var(--ochre)">The one line</span>
+    <p class="lede" style="margin:10px 0 0">${summary}</p>
+  </div>
+
+  ${n ? `
+  <div class="panel tagged offset-neg">
+    <span class="panel-tag">Every round you played</span>
+    <div class="scroller">
+      <table class="tbl">
+        <thead><tr><th>Scenario</th><th>You chose</th><th>Process</th><th>EV</th><th>Your draw</th><th>Pct</th><th>Road not taken</th><th>Cell</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <span class="label">Long run — ${LONG_N.toLocaleString()} further rounds across the whole library</span>
+    <h2 class="headline" style="margin:10px 0 14px">Where process<br>and results converge</h2>
+    <div class="chartbox"><canvas id="longrun"></canvas></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--ink)"></i> Always take the +EV option — the zero line</span>
+      <span><i class="swatch" style="background:var(--oxblood)"></i> Resulting: take whatever paid better last time</span>
+      <span><i class="swatch" style="background:var(--ultramarine)"></i> Your rule, replayed</span>
+    </div>
+    <hr class="rule">
+    <div class="row">
+      <div class="col">
+        ${readout("Process rule, cumulative", lr.final.ev.toFixed(1))}
+        ${readout("Resulting rule, cumulative", lr.final.res.toFixed(1), lr.final.res < lr.final.ev ? "strike" : "")}
+        ${readout("Your rule, cumulative", lr.final.you.toFixed(1))}
+      </div>
+      <div class="col">
+        ${readout("Rounds resulting matched or beat process", lr.roundsWonPct.toFixed(0) + "%")}
+        ${readout("Of the first 50 rounds, resulting led", lr.leadEarly + " / 50")}
+        ${readout("Resulting cost over the long run", (lr.final.res - lr.final.ev).toFixed(1) + " units")}
+      </div>
+    </div>
+    <p class="sec" style="font-size:calc(var(--t-body)*.78);margin:14px 0 0">
+      Payoffs are normalised per scenario — 1.00 unit is one EV-optimal expected payoff — so scenarios on different scales can be summed.
+      The resulting rule switches to whichever option paid more on the previous encounter with that scenario. Round to round it matches or beats the process rule ${lr.roundsWonPct.toFixed(0)}% of the time, which is precisely why it survives scrutiny — and it still gives back ${Math.abs(lr.final.res - lr.final.ev).toFixed(0)} units over ${LONG_N.toLocaleString()} rounds. Modifiers are off in the long run; base distributions only.
+    </p>
+  </div>` : ""}
+
+  <div class="chips" style="margin-top:8px">
+    <button type="button" class="primary big" data-go="table">Back to the table</button>
+    <button type="button" class="big" id="hard-reset">Clear the session</button>
+  </div>
+
+  <footer class="foot">
+    <span class="label">Sources</span>
+    <ul>
+      <li>Baron, J., &amp; Hershey, J. C. (1988). Outcome bias in decision evaluation. <em>Journal of Personality and Social Psychology</em>, 54(4), 569–579.</li>
+      <li>Duke, A. (2018). <em>Thinking in Bets.</em> Portfolio. — Super Bowl XLIX; "life is poker, not chess".</li>
+      <li>Duke, A. (2020). <em>How to Decide.</em> Portfolio. — the decision multiverse.</li>
+      <li>Duke, A. (2022). <em>Quit.</em> Portfolio. — forward expected value against sunk outcomes.</li>
+      <li>Survivorship-bias illustration after Abraham Wald's WWII aircraft-armour analysis, Statistical Research Group. Presented as historical illustration.</li>
+    </ul>
+    <p class="sec" style="margin-bottom:0">Croupier runs entirely in this file. No network calls, no storage, no analytics. Every draw is a function of the seed.</p>
+  </footer>`;
+}
+
+/* ============================================================
+   17. EVENTS
+   ============================================================ */
+function afterRender(){
+  const app = document.getElementById("app");
+
+  app.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => commitChoice(+b.dataset.pick)));
+  app.querySelectorAll("[data-mod]").forEach(b => b.addEventListener("click", () => {
+    const scn = SCENARIOS[S.scenarioIdx], act = activeMods(scn.id), id = b.dataset.mod;
+    const k = act.indexOf(id); if(k === -1) act.push(id); else act.splice(k,1);
+    /* modifiers change the distribution, so any committed draw for this scenario is void */
+    S.rounds = S.rounds.filter(r => r.scenarioId !== scn.id);
+    if(S.current && S.current.scenarioId === scn.id) S.current = null;
+    render();
+  }));
+  app.querySelectorAll("[data-scn]").forEach(b => b.addEventListener("click", () => {
+    S.scenarioIdx = +b.dataset.scn;
+    const played = S.rounds.find(r => r.scenarioId === SCENARIOS[S.scenarioIdx].id);
+    S.current = played || null;
+    render(); window.scrollTo(0,0);
+  }));
+
+  const ev = document.getElementById("toggle-ev");
+  if(ev) ev.addEventListener("click", () => { S.showEV = !S.showEV; render(); });
+
+  const rd = document.getElementById("redeal");
+  if(rd) rd.addEventListener("click", () => { S.redraw++; commitChoice(S.current.choiceIdx); });
+
+  const un = document.getElementById("undo");
+  if(un) un.addEventListener("click", () => {
+    S.rounds = S.rounds.filter(r => r.scenarioId !== SCENARIOS[S.scenarioIdx].id);
+    S.current = null; render();
+  });
+
+  const nx = document.getElementById("next-scn");
+  if(nx) nx.addEventListener("click", () => {
+    if(S.scenarioIdx < SCENARIOS.length - 1){
+      S.scenarioIdx++;
+      const played = S.rounds.find(r => r.scenarioId === SCENARIOS[S.scenarioIdx].id);
+      S.current = played || null;
+      render(); window.scrollTo(0,0);
+    } else go("debrief");
+  });
+
+  /* audit */
+  app.querySelectorAll("[data-rate]").forEach(b => b.addEventListener("click", () => {
+    const [which, n] = b.dataset.rate.split(":");
+    S.audit[which][S.audit.i] = +n; render();
+  }));
+  app.querySelectorAll("[data-prob]").forEach(b => b.addEventListener("click", () => {
+    S.audit.prob[S.audit.i] = +b.dataset.prob; render();
+  }));
+  const rev = document.getElementById("reveal");
+  if(rev) rev.addEventListener("click", () => {
+    S.audit.val[S.audit.i] = auditValence(S.audit.i);
+    S.audit.phase = "post"; render();
+  });
+  const an = document.getElementById("audit-next");
+  if(an) an.addEventListener("click", () => { S.audit.i++; S.audit.phase = "pre"; render(); window.scrollTo(0,0); });
+  const ar = document.getElementById("audit-reset");
+  if(ar) ar.addEventListener("click", () => { S.audit = { i:0, phase:"pre", pre:[], prob:[], post:[], val:[] }; render(); window.scrollTo(0,0); });
+
+  /* start screen controls */
+  const si = document.getElementById("seed-in");
+  const ss = document.getElementById("seed-set");
+  if(ss) ss.addEventListener("click", () => { setSeed(si.value.trim() || S.seed); });
+  if(si) si.addEventListener("keydown", e => { if(e.key === "Enter") setSeed(si.value.trim() || S.seed); });
+  const sn = document.getElementById("seed-new");
+  if(sn) sn.addEventListener("click", () => {
+    const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let out = "";
+    for(let i=0;i<6;i++) out += a[Math.floor(Math.random()*a.length)];
+    setSeed("CROUPIER-" + out);
+  });
+  const ms = document.getElementById("mode-solo"), mc = document.getElementById("mode-class");
+  if(ms) ms.addEventListener("click", () => { S.classMode = false; render(); });
+  if(mc) mc.addEventListener("click", () => { S.classMode = true;  render(); });
+
+  const hr = document.getElementById("hard-reset");
+  if(hr) hr.addEventListener("click", () => {
+    S.rounds = []; S.current = null; S.scenarioIdx = 0; S.redraw = 0; S.mods = {};
+    S.audit = { i:0, phase:"pre", pre:[], prob:[], post:[], val:[] };
+    go("start");
+  });
+
+  app.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+
+  /* canvases: two frames before the first draw so layout has settled */
+  const hist = document.getElementById("hist");
+  if(hist && S.current) twoFrames(() => drawHistogram(hist, {
+    chosen: S.current.samples[S.current.choiceIdx],
+    alt:    S.current.samples[S.current.otherIdx],
+    ev:     S.current.evChosen,
+    evAlt:  S.current.evOther,
+    draw:   S.current.draw,
+    drawAlt:S.current.drawAlt,
+    fmt:    S.current.fmt,
+    unit:   S.current.unit
+  }));
+
+  const lrc = document.getElementById("longrun");
+  if(lrc && S.rounds.length){
+    const lr = longRun();
+    twoFrames(() => drawLines(lrc, [
+      { data: lr.gap.ev,  colour: C.ink,   w:3 },
+      { data: lr.gap.res, colour: C.ox,    w:3 },
+      { data: lr.gap.you, colour: C.ultra, w:3 }
+    ], "ROUNDS 0 – " + LONG_N.toLocaleString() + "  ·  UNITS AHEAD OF / BEHIND THE PROCESS RULE"));
+  }
+}
+function setSeed(v){ S.seed = v.toUpperCase(); S.rounds = []; S.current = null; S.redraw = 0; render(); }
+
+/* header controls live outside the re-rendered region */
+document.getElementById("nav").addEventListener("click", e => {
+  const b = e.target.closest("[data-go]"); if(b) go(b.dataset.go);
+});
+document.getElementById("btn-mode").addEventListener("click", () => { S.classMode = !S.classMode; render(); });
+
+let rt;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(afterRender, 140); });
+
+render();
+</script>
+</body>
+</html>

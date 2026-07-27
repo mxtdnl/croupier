@@ -245,6 +245,48 @@ table.tbl th{background:var(--ink);color:var(--bone);font-weight:700}
 footer.foot{border-top:3px solid var(--ink);margin-top:20px;padding-top:18px;font-size:calc(var(--t-body)*.74)}
 footer.foot li{margin-bottom:6px}
 
+/* ---------- emblems: figures built from the same primitives as the
+     background geometry — circles, triangles, flat blocks, ink keylines ---------- */
+.emblem{width:100%;max-width:300px}
+.emblem svg,.croupier svg{display:block;width:100%;height:auto;overflow:visible}
+.croupier{width:100%;max-width:180px}
+.em-k{stroke:var(--ink);stroke-width:3;stroke-linejoin:miter;stroke-linecap:butt}
+.em-kb{stroke:currentColor;stroke-width:3;stroke-linejoin:miter;stroke-linecap:butt}
+.f-bone{fill:var(--bone)}.f-ink{fill:var(--ink)}.f-ochre{fill:var(--ochre)}
+.f-ox{fill:var(--oxblood)}.f-ultra{fill:var(--ultramarine)}.f-jade{fill:var(--jade)}
+.f-slate{fill:var(--slate)}.f-none{fill:none}
+
+.emblem [class*="flap"],.emblem .coin-grp,.emblem .ball,.emblem .heart,.emblem .ptr{transform-box:fill-box}
+.emblem .ptr{opacity:0;fill:var(--ptr,var(--ink))}
+.emblem.pick-0 .ptr-0,.emblem.pick-1 .ptr-1{opacity:1}
+.emblem .coin-b{opacity:0}   /* reverse face; only seen mid-flip */
+
+/* every state change is a hard cut: steps() only, no easing, no blur */
+@keyframes coinFlip{
+  0%,20%,40%,60%,80%,100%{transform:scaleX(1)}
+  10%,30%,50%,70%,90%{transform:scaleX(0.08)}
+}
+@keyframes coinA{0%,20%{opacity:1}20.01%,40%{opacity:0}40.01%,60%{opacity:1}60.01%,80%{opacity:0}80.01%,100%{opacity:1}}
+@keyframes coinB{0%,20%{opacity:0}20.01%,40%{opacity:1}40.01%,60%{opacity:0}60.01%,80%{opacity:1}80.01%,100%{opacity:0}}
+@keyframes flapOpen{0%{transform:scaleY(1)}100%{transform:scaleY(-1)}}
+@keyframes ballRun{0%{transform:translateX(0)}100%{transform:translateX(62px)}}
+@keyframes beat{0%,40%,80%{transform:scale(1)}20%,60%{transform:scale(1.13)}100%{transform:scale(1)}}
+@keyframes drop{0%{transform:translateY(-30px)}100%{transform:translateY(0)}}
+
+.emblem.deal.pick-1 .coin-grp{animation:coinFlip .7s steps(1,end) both;transform-origin:center}
+.emblem.deal.pick-1 .coin-a{animation:coinA .7s steps(1,end) both}
+.emblem.deal.pick-1 .coin-b{animation:coinB .7s steps(1,end) both}
+.emblem.deal.pick-0 .flap-0,.emblem.deal.pick-1 .flap-1{animation:flapOpen .32s steps(4,end) .6s both;transform-origin:50% 0}
+.emblem.pick-0 .flap-0,.emblem.pick-1 .flap-1{transform:scaleY(-1);transform-origin:50% 0}
+.emblem.deal .ball{animation:ballRun .6s steps(6,end) both}
+.emblem.dealt .ball{transform:translateX(62px)}
+.emblem.deal .heart{animation:beat .9s steps(1,end) both;transform-origin:center}
+.emblem.deal .ptr{animation:drop .3s steps(3,end) both}
+
+@media (prefers-reduced-motion: reduce){
+  .emblem *{animation:none !important}
+}
+
 .hide{display:none !important}
 
 @media (max-width:760px){
@@ -499,6 +541,7 @@ const S = {
   showEV: false,
   scenarioIdx: 0,
   redraw: 0,                       // increments the draw sub-stream on "deal again"
+  justDealt: false,                // true for exactly one render after a commit
   mods: {},                        // scenarioId -> [modId]
   rounds: [],                      // committed results, one per scenario played
   current: null,                   // last committed result for the scenario on screen
@@ -561,6 +604,101 @@ function buildGeo(name){
 }
 
 /* ============================================================
+   6b. EMBLEMS — one per scenario, drawn from the same primitive
+   vocabulary as the background geometry. No illustration, no icon
+   font: circles, triangles, flat blocks and 3px ink keylines.
+   ============================================================ */
+const PTR = (cx, n) => `<path class="ptr ptr-${n}" d="M${cx-16} 182 L${cx+16} 182 L${cx} 156 Z"/>`;
+
+const EMBLEMS = {
+  /* two envelopes; a coin rides above the one that has to be flipped */
+  sure50: `<svg viewBox="0 0 260 190" role="img" aria-label="Two envelopes. The right one is settled by a coin.">
+    <rect class="f-bone em-k" x="12" y="66" width="110" height="82"/>
+    <rect class="f-bone em-k" x="138" y="66" width="110" height="82"/>
+    <path class="f-ochre em-k flap flap-0" d="M12 66 L67 112 L122 66 Z"/>
+    <path class="f-ultra em-k flap flap-1" d="M138 66 L193 112 L248 66 Z"/>
+    <g class="coin-grp">
+      <circle class="coin-face coin-a f-ochre em-k" cx="193" cy="30" r="24"/>
+      <circle class="coin-face coin-b f-ox em-k" cx="193" cy="30" r="24"/>
+      <circle class="f-none em-k" cx="193" cy="30" r="11"/>
+    </g>
+    ${PTR(67,0)}${PTR(193,1)}
+  </svg>`,
+
+  /* the one-yard line: ball, stacked front, goal line, end zone */
+  oneyard: `<svg viewBox="0 0 260 190" role="img" aria-label="A ball one yard from the goal line, with the defence stacked in front of it.">
+    <rect class="f-ochre em-k" x="206" y="30" width="42" height="118"/>
+    <rect class="f-bone" x="219" y="30" width="4" height="118"/>
+    <rect class="f-bone" x="234" y="30" width="4" height="118"/>
+    <rect class="f-ink" x="198" y="24" width="6" height="130"/>
+    <path class="f-ink em-k" d="M126 148 L148 96 L170 148 Z"/>
+    <path class="f-ink em-k" d="M152 148 L172 104 L192 148 Z"/>
+    <rect class="f-ink" x="12" y="148" width="236" height="6"/>
+    <g class="ball">
+      <ellipse class="f-ox em-k" cx="44" cy="124" rx="24" ry="16"/>
+      <rect class="f-bone" x="37" y="122" width="14" height="4"/>
+    </g>
+  </svg>`,
+
+  /* two candidates: the known quantity and the taller unknown */
+  hire: `<svg viewBox="0 0 260 190" role="img" aria-label="Two candidates: a known internal one and a taller, less certain external one.">
+    <rect class="f-ink" x="12" y="148" width="236" height="6"/>
+    <circle class="f-bone em-k" cx="67" cy="52" r="18"/>
+    <path class="f-bone em-k" d="M34 148 L67 82 L100 148 Z"/>
+    <circle class="f-ultra em-k" cx="193" cy="40" r="21"/>
+    <path class="f-ultra em-k" d="M150 148 L193 68 L236 148 Z"/>
+    ${PTR(67,0)}${PTR(193,1)}
+  </svg>`,
+
+  /* a heart and a trace: the operation, and the managed decline */
+  operation: `<svg viewBox="0 0 260 190" role="img" aria-label="A heart above a pulse trace.">
+    <g class="heart">
+      <circle class="f-ox em-k" cx="105" cy="72" r="29"/>
+      <circle class="f-ox em-k" cx="155" cy="72" r="29"/>
+      <path class="f-ox em-k" d="M78 84 L130 140 L182 84 Z"/>
+    </g>
+    <path class="f-none em-k" d="M12 168 L62 168 L76 144 L92 184 L106 168 L248 168"/>
+  </svg>`,
+
+  /* three rounds banked and a dashed fourth, against taking it off the table */
+  quit: `<svg viewBox="0 0 260 190" role="img" aria-label="Three rounds banked and a dashed fourth, against redeploying what is left.">
+    <rect class="f-ink" x="12" y="148" width="236" height="6"/>
+    <rect class="f-slate em-k" x="16" y="118" width="24" height="30"/>
+    <rect class="f-slate em-k" x="46" y="96" width="24" height="52"/>
+    <rect class="f-slate em-k" x="76" y="74" width="24" height="74"/>
+    <rect class="f-none em-k" x="106" y="52" width="24" height="96" stroke-dasharray="8 6"/>
+    <circle class="f-bone em-k" cx="180" cy="104" r="26"/>
+    <path class="f-ochre em-k" d="M214 78 L248 104 L214 130 Z"/>
+    ${PTR(72,0)}${PTR(200,1)}
+  </svg>`,
+
+  /* a flat coupon against a spread with a tail below the line */
+  portfolio: `<svg viewBox="0 0 260 190" role="img" aria-label="A flat coupon against a spread of returns with a drawdown below the line.">
+    <rect class="f-ink" x="12" y="104" width="236" height="5"/>
+    <rect class="f-ochre em-k" x="20" y="84" width="26" height="20"/>
+    <rect class="f-ochre em-k" x="52" y="84" width="26" height="20"/>
+    <rect class="f-ochre em-k" x="84" y="84" width="26" height="20"/>
+    <rect class="f-ultra em-k" x="146" y="42" width="26" height="62"/>
+    <rect class="f-ultra em-k" x="178" y="70" width="26" height="34"/>
+    <rect class="f-ox em-k" x="210" y="109" width="26" height="44"/>
+    ${PTR(65,0)}${PTR(191,1)}
+  </svg>`
+};
+
+/* the dealer: circle, triangle, two bow-tie triangles, a disc held out.
+   Drawn with currentColor keylines so it inverts correctly on an ink panel. */
+const CROUPIER = `<svg viewBox="0 0 170 200" role="img" aria-label="The croupier, holding a disc out over the table.">
+  <path class="f-ultra em-kb" d="M18 190 L48 84 L104 84 L134 190 Z"/>
+  <rect class="f-bone em-kb" x="52" y="70" width="46" height="18"/>
+  <circle class="f-bone em-kb" cx="75" cy="38" r="26"/>
+  <path class="f-ox em-kb" d="M75 92 L57 80 L57 104 Z"/>
+  <path class="f-ox em-kb" d="M75 92 L93 80 L93 104 Z"/>
+  <path class="f-none em-kb" d="M104 96 L142 124 L142 152"/>
+  <circle class="f-ochre em-kb" cx="142" cy="168" r="17"/>
+  <circle class="f-none em-kb" cx="142" cy="168" r="7"/>
+</svg>`;
+
+/* ============================================================
    7. SMALL VIEW HELPERS
    ============================================================ */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -597,6 +735,35 @@ function fitCanvas(cv){
   return { ctx, w:r.width, h:r.height };
 }
 function twoFrames(fn){ requestAnimationFrame(()=>requestAnimationFrame(fn)); }
+function reducedMotion(){
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/* The draw settles: the marker steps through other worlds this same decision
+   could have produced before landing on the one you actually got. The candidates
+   are pulled from the already-computed sample array by a seeded stream, so the
+   flicker is cosmetic and the run stays fully reproducible. */
+function settleDraw(m, r){
+  const rnd = stream(r.scenarioId + "|settle|" + S.redraw + "|" + r.choiceIdx);
+  const cand = [];
+  for(let i=0;i<7;i++) cand.push(m.chosen[Math.floor(rnd() * m.chosen.length)]);
+  const num = document.getElementById("draw-num");
+  const finalColour = num ? num.style.color : "";
+  let f = 0;
+  const step = () => {
+    const cv = document.getElementById("hist");
+    if(!cv || S.screen !== "table") return;          // navigated away mid-deal
+    const done = f >= cand.length;
+    m.draw = done ? r.draw : cand[f];
+    drawHistogram(cv, m);
+    if(num){
+      num.textContent = m.fmt(m.draw);
+      num.style.color = done ? finalColour : "var(--slate)";
+    }
+    if(!done){ f++; setTimeout(step, 70); }
+  };
+  step();
+}
 
 function drawHistogram(cv, m){
   const { ctx, w, h } = fitCanvas(cv);
@@ -910,6 +1077,7 @@ function commitChoice(idx){
   r.decisionGood = (idx === st.bestIdx);
   r.outcomeGood  = (r.draw >= st.evs[st.bestIdx]);
   S.current = r;
+  S.justDealt = true;                 // consumed once, by the next render
   const prev = S.rounds.findIndex(x => x.scenarioId === scn.id);
   if(prev >= 0) S.rounds[prev] = r; else S.rounds.push(r);
   render();
@@ -961,7 +1129,7 @@ function viewTable(){
         </div>
         <div class="col" style="flex:1 1 300px">
           <span class="label">What happened to you</span>
-          <div class="big-num" style="color:${r.outcomeGood?"var(--ink)":"var(--oxblood)"}">${r.fmt(r.draw)}</div>
+          <div class="big-num" id="draw-num" style="color:${r.outcomeGood?"var(--ink)":"var(--oxblood)"}">${r.fmt(r.draw)}</div>
           <span class="label sec" style="margin-top:6px">Percentile within your own distribution</span>
           ${meter(r.pct/10, r.pct < 30 ? "var(--oxblood)" : r.pct > 70 ? "var(--jade)" : "var(--ochre)")}
           <div class="num" style="font-weight:700;margin-top:6px">${r.pct.toFixed(1)}TH PERCENTILE</div>
@@ -1010,7 +1178,15 @@ function viewTable(){
   </div>
 
   <div class="panel" style="margin-top:26px">
-    <p class="lede" style="margin:0">${esc(scn.brief)}</p>
+    <div class="row">
+      <div class="col" style="flex:2 1 420px">
+        <p class="lede" style="margin:0">${esc(scn.brief)}</p>
+      </div>
+      <div class="col" style="flex:0 1 300px">
+        <div class="emblem ${showResult ? "dealt pick-" + S.current.choiceIdx : ""}"
+             ${showResult ? 'style="--ptr:' + QUAD[quadKey(S.current)].colour + '"' : ""}>${EMBLEMS[scn.id] || ""}</div>
+      </div>
+    </div>
     <hr class="rule">
     <div class="row" style="align-items:center">
       <div class="col" style="flex:2 1 380px">
@@ -1031,7 +1207,15 @@ function viewTable(){
     ${optCards.map(c => '<div class="col">' + c + "</div>").join("")}
   </div>
 
-  ${showResult ? resultHTML : `<div class="panel ink"><p style="margin:0">Commit to an option. Nothing is sampled until you do — the engine will not let you choose after seeing the draw, because that is the entire disease this tool treats.</p></div>`}
+  ${showResult ? resultHTML : `<div class="panel ink">
+    <div class="row" style="align-items:center">
+      <div class="col" style="flex:0 1 180px"><div class="croupier">${CROUPIER}</div></div>
+      <div class="col" style="flex:3 1 420px">
+        <span class="label" style="color:var(--ochre)">The croupier is waiting</span>
+        <p style="margin:10px 0 0">Commit to an option. Nothing is sampled until you do — the engine will not let you choose after seeing the draw, because that is the entire disease this tool treats.</p>
+      </div>
+    </div>
+  </div>`}
   `;
 }
 
@@ -1414,7 +1598,9 @@ function viewDebrief(){
 /* ============================================================
    17. EVENTS
    ============================================================ */
-function afterRender(){
+function afterRender(){ bindEvents(); paintCanvases(); }
+
+function bindEvents(){
   const app = document.getElementById("app");
 
   app.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => commitChoice(+b.dataset.pick)));
@@ -1496,19 +1682,31 @@ function afterRender(){
   });
 
   app.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+}
+
+/* Canvas painting is separated from event binding because the resize handler
+   needs to repaint without re-attaching listeners to nodes that already have
+   them — doing both would fire every handler once per resize. */
+function paintCanvases(){
+  const app = document.getElementById("app");
+
+  /* the emblem resolves on the deal, once */
+  const emb = app.querySelector(".emblem");
+  if(emb && S.justDealt) emb.classList.add("deal");
 
   /* canvases: two frames before the first draw so layout has settled */
   const hist = document.getElementById("hist");
-  if(hist && S.current) twoFrames(() => drawHistogram(hist, {
-    chosen: S.current.samples[S.current.choiceIdx],
-    alt:    S.current.samples[S.current.otherIdx],
-    ev:     S.current.evChosen,
-    evAlt:  S.current.evOther,
-    draw:   S.current.draw,
-    drawAlt:S.current.drawAlt,
-    fmt:    S.current.fmt,
-    unit:   S.current.unit
-  }));
+  if(hist && S.current){
+    const r = S.current;
+    const m = {
+      chosen: r.samples[r.choiceIdx], alt: r.samples[r.otherIdx],
+      ev: r.evChosen, evAlt: r.evOther, draw: r.draw, drawAlt: r.drawAlt,
+      fmt: r.fmt, unit: r.unit
+    };
+    if(S.justDealt && !reducedMotion()) twoFrames(() => settleDraw(m, r));
+    else twoFrames(() => drawHistogram(hist, m));
+  }
+  S.justDealt = false;
 
   const lrc = document.getElementById("longrun");
   if(lrc && S.rounds.length){
@@ -1529,7 +1727,7 @@ document.getElementById("nav").addEventListener("click", e => {
 document.getElementById("btn-mode").addEventListener("click", () => { S.classMode = !S.classMode; render(); });
 
 let rt;
-window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(afterRender, 140); });
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(paintCanvases, 140); });
 
 render();
 </script>

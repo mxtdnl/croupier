@@ -121,6 +121,8 @@ button.on-ochre{background:var(--ochre);color:var(--ink)}
 button.on-jade{background:var(--jade);color:var(--ink)}
 button.primary{background:var(--ultramarine);color:var(--bone);box-shadow:7px 7px 0 var(--ink)}
 button.primary:active{box-shadow:2px 2px 0 var(--ink)}
+/* a disabled primary must not keep the action fill, or it reads as clickable */
+button.primary[disabled]{background:var(--bone);color:var(--slate);border-color:var(--slate);box-shadow:5px 5px 0 var(--slate)}
 button.ghost{box-shadow:none;padding:7px 11px}
 button.ghost:active{box-shadow:none}
 button.big{font-size:calc(var(--t-body) * .78);padding:14px 20px;box-shadow:7px 7px 0 var(--ink)}
@@ -345,7 +347,7 @@ const money  = v => (v<0?"−":"") + "£" + Math.abs(Math.round(v));
 const moneyK = v => (v<0?"−":"") + "£" + Math.abs(Math.round(v)) + "K";
 const wp     = v => v.toFixed(1) + " WP";
 const qaly   = v => v.toFixed(1) + " QALY";
-const pct1   = v => (v<0?"−":"+") + Math.abs(v).toFixed(1) + "%";
+const units  = v => Math.round(v) + "K";
 
 const SCENARIOS = [
   {
@@ -444,22 +446,22 @@ const SCENARIOS = [
     ]
   },
   {
-    id:"portfolio",
-    title:"The allocation",
-    unit:"ONE-YEAR RETURN",
-    fmt:pct1,
-    brief:"A twelve-month horizon on money you do not need for twelve years. Gilts pay a known four per cent. The equity tilt has a fat middle, a decent right shoulder and a tail that will, roughly one year in seven, take a third of it away. Payoffs are one-year total return.",
+    id:"supplier",
+    title:"The supplier",
+    unit:"UNITS SHIPPED THIS QUARTER",
+    fmt:units,
+    brief:"Your only component supplier has quoted fourteen weeks and a price that eats the margin. A newer factory quotes six weeks at two-thirds the cost; they have shipped for two of your competitors, and one of those two had a bad quarter with them. The whole quarter's order goes to one or the other. Payoffs are units shipped this quarter, in thousands.",
     options:[
-      {name:"Hold gilts", note:"A known number. Comfortable, and comfortably worse.",
-       dist:[{p:1, lo:3.8, hi:4.2, label:"Coupon"}]},
-      {name:"Tilt to equity", note:"Higher EV, and a tail that will make you feel stupid in public.",
-       dist:[{p:0.62, lo:9, hi:22, label:"Good year"},{p:0.23, lo:0, hi:6, label:"Flat year"},{p:0.15, lo:-30, hi:-8, label:"Drawdown"}]}
+      {name:"Stay with the incumbent", note:"Slow and expensive, and they have never once missed a quarter.",
+       dist:[{p:0.88, lo:42, hi:48, label:"Ships as quoted"},{p:0.12, lo:22, hi:30, label:"Late, part order"}]},
+      {name:"Switch to the challenger", note:"Faster and cheaper, with a real chance of missing the quarter outright.",
+       dist:[{p:0.62, lo:58, hi:72, label:"Early and in full"},{p:0.23, lo:38, hi:48, label:"Ships, some slippage"},{p:0.15, lo:0, hi:12, label:"Misses the quarter"}]}
     ],
     mods:[
-      {id:"stretched", label:"Stretched valuations", weight:1, note:"Drawdown branch weighted 1.5×.",
-       prob:{1:[1,1,1.5]}},
-      {id:"fees", label:"Active management fees", weight:1, note:"All equity payoffs ×0.92.",
-       payoff:{1:0.92}}
+      {id:"secondsource", label:"Second-source the tooling", weight:1, note:"A backup mould at a third factory: the missed-quarter branch weighted 0.45×.",
+       prob:{1:[1,1,0.45]}},
+      {id:"freight", label:"Peak-season freight", weight:1, note:"Every route is congested: all challenger payoffs ×0.88.",
+       payoff:{1:0.88}}
     ]
   }
 ];
@@ -468,9 +470,9 @@ const SCENARIOS = [
    3. AUDIT ITEMS  (ex ante description fixed; valence drawn at reveal)
    ============================================================ */
 const AUDIT = [
-  {id:"cfo", text:"A CFO fixes the company's floating-rate debt two months before a central-bank decision. The forward curve prices a rise at 55%; the fix costs 40 basis points of carry; the board has asked for predictable interest cost.",
-   good:"Rates rose 150bp. The fix saved £4.2m over the term and the CFO was named finance leader of the year.",
-   bad:"Rates fell 100bp. The fix cost £2.8m against floating and the CFO spent two board meetings defending it."},
+  {id:"shutdown", text:"An operations director stops a production line for four days to replace a bearing that vibration monitoring has flagged as degrading. The bearing has not failed and the line is running to spec. The shutdown costs a week of output; the monitoring system has called eleven of the last fourteen failures correctly.",
+   good:"Stripped down, the bearing was days from seizing. An unplanned failure would have taken the line out for three weeks and scrapped everything in progress.",
+   bad:"Stripped down, the bearing was well within tolerance. Four days of output lost, and the board asked why a line was stopped on a sensor reading."},
   {id:"surgeon", text:"A surgeon recommends an operation with a published 8% operative mortality for a patient whose untreated condition carries a much worse ten-year outlook. The patient is told the numbers and consents.",
    good:"The operation went cleanly. The patient was home in nine days and back at work in six weeks.",
    bad:"The patient did not survive the operation. The family asked why surgery had been recommended at all."},
@@ -673,15 +675,19 @@ const EMBLEMS = {
   </svg>`,
 
   /* a flat coupon against a spread with a tail below the line */
-  portfolio: `<svg viewBox="0 0 260 190" role="img" aria-label="A flat coupon against a spread of returns with a drawdown below the line.">
-    <rect class="f-ink" x="12" y="104" width="236" height="5"/>
-    <rect class="f-ochre em-k" x="20" y="84" width="26" height="20"/>
-    <rect class="f-ochre em-k" x="52" y="84" width="26" height="20"/>
-    <rect class="f-ochre em-k" x="84" y="84" width="26" height="20"/>
-    <rect class="f-ultra em-k" x="146" y="42" width="26" height="62"/>
-    <rect class="f-ultra em-k" x="178" y="70" width="26" height="34"/>
-    <rect class="f-ox em-k" x="210" y="109" width="26" height="44"/>
-    ${PTR(65,0)}${PTR(191,1)}
+  supplier: `<svg viewBox="0 0 260 190" role="img" aria-label="A modest stack of crates against a taller stack with one crate tipped on its side.">
+    <rect class="f-ink" x="12" y="148" width="236" height="6"/>
+    <rect class="f-ochre em-k" x="32" y="118" width="30" height="30"/>
+    <rect class="f-ochre em-k" x="66" y="118" width="30" height="30"/>
+    <rect class="f-ochre em-k" x="32" y="88" width="30" height="30"/>
+    <rect class="f-ochre em-k" x="66" y="88" width="30" height="30"/>
+    <rect class="f-ultra em-k" x="146" y="118" width="30" height="30"/>
+    <rect class="f-ultra em-k" x="180" y="118" width="30" height="30"/>
+    <rect class="f-ultra em-k" x="146" y="88" width="30" height="30"/>
+    <rect class="f-ultra em-k" x="180" y="88" width="30" height="30"/>
+    <rect class="f-ultra em-k" x="146" y="58" width="30" height="30"/>
+    <path class="f-ox em-k" d="M228 118 L243 133 L228 148 L213 133 Z"/>
+    ${PTR(64,0)}${PTR(194,1)}
   </svg>`
 };
 
